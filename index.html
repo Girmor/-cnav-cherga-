@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ЦНАВ · Електронна черга</title>
+<meta name="description" content="Електронна черга на питання. Ліміт, статус вікна і табло для планшета.">
+<meta name="theme-color" content="#0e0e0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Черга">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0f;
+    --panel: #17171a;
+    --line: #2a2a2f;
+    --text: #f3f0e8;
+    --mute: #8d8b85;
+    --yellow: #FFD23F;
+    --led: #ff3b2f;
+    --led-off: #26110f;
+    --green: #2fd27a;
+    --amber: #ffb800;
+    --red: #ff3b2f;
+    --f-display: Unbounded, "Arial Black", system-ui, sans-serif;
+    --f-body: Manrope, system-ui, -apple-system, sans-serif;
+    --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--f-body);
+    overflow: hidden;
+    user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; touch-action: manipulation; }
+
+  .app {
+    height: 100vh; height: 100dvh;
+    display: grid; grid-template-rows: auto 1fr auto auto;
+    gap: 1.6vmin;
+    padding: max(2vmin, env(safe-area-inset-top)) max(2.2vmin, env(safe-area-inset-right)) 0 max(2.2vmin, env(safe-area-inset-left));
+  }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 2vmin;
+    padding-bottom: 1.4vmin; border-bottom: .5vmin solid var(--text);
+  }
+  .pill {
+    font-family: var(--f-display); font-weight: 700; font-size: 2vmin; letter-spacing: .04em;
+    background: var(--text); color: var(--bg);
+    padding: .8vmin 1.9vmin; border-radius: 99px; white-space: nowrap;
+  }
+  .hd-mid {
+    font-family: var(--f-mono); font-weight: 700; font-size: 1.6vmin;
+    letter-spacing: .3em; text-transform: uppercase; color: var(--mute); white-space: nowrap;
+  }
+  .chip {
+    font-family: var(--f-mono); font-weight: 700; font-size: 1.5vmin; text-transform: uppercase; letter-spacing: .06em;
+    padding: .6vmin 1.4vmin; border-radius: 99px; border: .25vmin solid currentColor; white-space: nowrap;
+  }
+  .chip[hidden] { display: none; }
+  .chip.note {
+    color: var(--yellow); font-size: 1.8vmin; padding: .7vmin 1.6vmin;
+    min-width: 0; max-width: 62vmin; overflow: hidden; text-overflow: ellipsis;
+    box-shadow: 0 0 1.6vmin rgba(255,210,63,.25);
+  }
+  body.has-note .hd-mid { display: none; }
+  .spacer { flex: 1; }
+  .clock { font-family: var(--f-mono); font-weight: 700; font-size: 2.6vmin; font-variant-numeric: tabular-nums; }
+  .brand { display: flex; align-items: center; gap: 1.2vmin; }
+  .brand b {
+    font-family: var(--f-display); font-weight: 900; font-size: 2.8vmin;
+    background: var(--yellow); color: #111; padding: .2vmin 1vmin;
+  }
+  .brand span { font-size: 1.4vmin; line-height: 1.2; color: var(--mute); font-weight: 700; }
+  .gear {
+    width: 5vmin; height: 5vmin; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--line); color: var(--text);
+  }
+  .gear svg { width: 2.8vmin; height: 2.8vmin; }
+
+  /* ---------- main grid ---------- */
+  main {
+    display: grid; grid-template-columns: 1.6fr 1fr; grid-template-rows: 1fr 1fr;
+    gap: 1.6vmin; min-height: 0;
+  }
+  .panel {
+    background: var(--panel); border: .3vmin solid var(--line); border-radius: 2vmin;
+    padding: 2.2vmin; display: flex; flex-direction: column; min-height: 0; position: relative;
+    transition: border-color .3s;
+  }
+  .label {
+    font-family: var(--f-mono); font-weight: 700; font-size: 1.6vmin;
+    letter-spacing: .2em; text-transform: uppercase; color: var(--mute);
+  }
+
+  /* now serving */
+  .now { grid-row: 1 / 3; }
+  .screen {
+    flex: 1; min-height: 0; margin-top: 1.6vmin;
+    background: #070707; border-radius: 1.4vmin; border: .3vmin solid #000;
+    box-shadow: inset 0 0 5vmin rgba(0,0,0,.9);
+    display: flex; align-items: center; justify-content: center;
+    padding: 3vmin 3.5vmin;
+  }
+  .screen svg { width: 100%; height: 100%; filter: drop-shadow(0 0 1.2vmin rgba(255,59,47,.55)); }
+  .screen .s { fill: var(--led-off); }
+  .screen .s.on { fill: var(--led); }
+  .screen.flash svg { animation: flash .42s steps(1) 5; }
+  @keyframes flash { 50% { opacity: .1; } }
+
+  .go { margin-top: 1.8vmin; display: flex; align-items: center; gap: 1.6vmin; }
+  .go-text { flex: 1; min-width: 0; }
+  .go-to {
+    font-family: var(--f-display); font-weight: 700; font-size: 2.8vmin;
+    color: var(--yellow); text-transform: uppercase; line-height: 1.15;
+  }
+  .go-wait { font-family: var(--f-mono); font-size: 1.7vmin; color: var(--mute); margin-top: .6vmin; }
+  .go-wait b { color: var(--text); font-weight: 700; }
+
+  .btn {
+    font-family: var(--f-display); font-weight: 700; font-size: 2.1vmin;
+    border-radius: 1.4vmin; padding: 1.7vmin 2.6vmin;
+    background: var(--line); color: var(--text); white-space: nowrap;
+    transition: transform .08s, opacity .5s;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: var(--yellow); color: #111; }
+  .btn.sq { padding: 1.7vmin 2.1vmin; }
+  .btn.danger { background: var(--red); color: #fff; }
+  .btn.ghost { background: transparent; border: .3vmin solid var(--line); }
+
+  /* status */
+  .status-list { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; margin-top: .8vmin; }
+  .st {
+    display: flex; align-items: center; gap: 2vmin; width: 100%;
+    padding: 1vmin 1.4vmin; border-radius: 1.4vmin; text-align: left;
+    opacity: .28; transition: opacity .25s, background .25s;
+  }
+  .st.active { opacity: 1; background: rgba(255,255,255,.045); }
+  .st i { width: 4.6vmin; height: 4.6vmin; border-radius: 50%; flex: none; background: currentColor; }
+  .st.active i { box-shadow: 0 0 2.6vmin currentColor, 0 0 .6vmin currentColor; }
+  .st.g { color: var(--green); } .st.y { color: var(--amber); } .st.r { color: var(--red); }
+  .st b { display: block; font-family: var(--f-display); font-weight: 700; font-size: 2.7vmin; text-transform: uppercase; color: var(--text); line-height: 1.1; }
+  .st small { display: block; font-size: 1.65vmin; color: var(--mute); font-weight: 600; margin-top: .3vmin; font-variant-numeric: tabular-nums; }
+
+  /* limit */
+  .lim-top { display: flex; align-items: baseline; gap: 1.2vmin; margin-top: 1vmin; }
+  .lim-n { font-family: var(--f-display); font-weight: 900; font-size: 8vmin; line-height: 1; transition: color .3s; }
+  .lim-of { font-family: var(--f-display); font-weight: 700; font-size: 3vmin; color: var(--mute); }
+  .lim-exh {
+    margin-left: auto; align-self: center;
+    font-family: var(--f-display); font-weight: 900; font-size: 1.9vmin; text-transform: uppercase;
+    color: #fff; background: var(--red); padding: .6vmin 1.2vmin; border-radius: .8vmin; transform: rotate(-4deg);
+  }
+  .boxes { display: flex; flex-wrap: wrap; gap: 1vmin; margin-top: 1.4vmin; }
+  .boxes button {
+    width: 4.4vmin; height: 4.4vmin; border-radius: .8vmin;
+    border: .35vmin solid var(--mute);
+    display: grid; place-items: center;
+    font-family: var(--f-display); font-weight: 900; font-size: 2.2vmin; color: #111;
+  }
+  .boxes button.on { background: var(--yellow); border-color: var(--yellow); }
+  .boxes button.on::after { content: "✕"; }
+  .lim-foot { margin-top: auto; display: flex; align-items: flex-end; gap: 1vmin; padding-top: 1vmin; }
+  .lim-note { flex: 1; font-size: 1.5vmin; color: var(--mute); font-weight: 600; line-height: 1.3; }
+  .lim-note b { color: var(--red); }
+  .panel.exhausted { border-color: var(--red); }
+  .panel.exhausted .lim-n { color: var(--red); }
+
+  /* counter */
+  .counter {
+    display: flex; align-items: center; gap: 2vmin;
+    background: var(--panel); border: .3vmin solid var(--line); border-radius: 2vmin;
+    padding: 1.3vmin 2.2vmin;
+  }
+  .counter .t { font-family: var(--f-display); font-weight: 700; font-size: 2.3vmin; text-transform: uppercase; line-height: 1.2; }
+  .counter mark { background: var(--yellow); color: #111; padding: 0 .8vmin; }
+  .days {
+    font-family: var(--f-display); font-weight: 900; font-size: 4.6vmin; line-height: 1;
+    min-width: 11vmin; text-align: center;
+    border: .35vmin solid var(--text); border-radius: 1vmin; padding: .8vmin 1.6vmin;
+    font-variant-numeric: tabular-nums;
+  }
+  .days.boom { animation: boom .7s; }
+  @keyframes boom {
+    0%, 100% { transform: none; }
+    15% { transform: translateX(-1vmin) rotate(-4deg); color: var(--red); border-color: var(--red); }
+    35% { transform: translateX(1vmin) rotate(4deg); color: var(--red); border-color: var(--red); }
+    55% { transform: translateX(-.6vmin) rotate(-2deg); color: var(--red); border-color: var(--red); }
+    75% { transform: translateX(.4vmin); }
+  }
+  .rec { margin-left: auto; font-family: var(--f-mono); font-size: 1.6vmin; color: var(--mute); text-align: right; line-height: 1.4; }
+  .rec b { color: var(--text); }
+
+  /* ticker */
+  .ticker {
+    margin: 0 calc(-1 * max(2.2vmin, env(safe-area-inset-right))) 0 calc(-1 * max(2.2vmin, env(safe-area-inset-left)));
+    padding: 1.1vmin 0 max(1.1vmin, env(safe-area-inset-bottom));
+    background: var(--yellow); color: #111;
+    overflow: hidden; white-space: nowrap;
+    font-family: var(--f-display); font-weight: 700; font-size: 1.9vmin; text-transform: uppercase;
+    transition: background .3s, color .3s;
+  }
+  .track { display: inline-block; animation: scroll var(--dur, 80s) linear infinite; will-change: transform; }
+  @keyframes scroll { to { transform: translateX(-50%); } }
+  body[data-status="closed"] .ticker { background: var(--red); color: #fff; }
+
+  /* idle: hide owner controls after a while */
+  .ctl { transition: opacity .6s; }
+  body.idle .ctl { opacity: 0; }
+
+  /* modal & toast */
+  .modal {
+    position: fixed; inset: 0; z-index: 10;
+    display: none; align-items: center; justify-content: center; padding: 4vmin;
+    background: rgba(0,0,0,.72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .modal.open { display: flex; }
+  .card {
+    width: 100%; max-width: 84vmin;
+    background: var(--panel); border: .3vmin solid var(--line); border-radius: 2.4vmin;
+    padding: 4vmin; user-select: text; -webkit-user-select: text;
+  }
+  .card h3 { font-family: var(--f-display); font-weight: 900; font-size: 4.4vmin; text-transform: uppercase; line-height: 1.05; }
+  .card h3.red { color: var(--red); }
+  .card p { font-size: 2.2vmin; line-height: 1.45; margin-top: 2vmin; color: #d6d3cb; font-weight: 600; }
+  .card p.mono { font-family: var(--f-mono); font-size: 1.9vmin; color: var(--mute); }
+  .card .row { display: flex; gap: 1.4vmin; margin-top: 3vmin; flex-wrap: wrap; }
+
+  .set { display: flex; align-items: center; gap: 2vmin; padding: 1.6vmin 0; border-bottom: .2vmin solid var(--line); }
+  .set > span { flex: 1; font-size: 2.1vmin; font-weight: 700; }
+  .set > span small { display: block; font-size: 1.5vmin; color: var(--mute); font-weight: 600; margin-top: .3vmin; }
+  .step { display: flex; align-items: center; gap: 1.2vmin; }
+  .step output { font-family: var(--f-display); font-weight: 900; font-size: 3vmin; min-width: 5vmin; text-align: center; }
+  .toggle { width: 9vmin; height: 5vmin; border-radius: 99px; background: var(--line); position: relative; transition: background .2s; flex: none; }
+  .toggle::after { content: ""; position: absolute; top: .6vmin; left: .6vmin; width: 3.8vmin; height: 3.8vmin; border-radius: 50%; background: var(--text); transition: transform .2s; }
+  .toggle[aria-pressed="true"] { background: var(--green); }
+  .toggle[aria-pressed="true"]::after { transform: translateX(4vmin); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 12vmin; z-index: 11;
+    transform: translate(-50%, 2vmin); opacity: 0; pointer-events: none;
+    background: var(--text); color: var(--bg);
+    font-family: var(--f-display); font-weight: 700; font-size: 2.2vmin;
+    padding: 1.6vmin 3vmin; border-radius: 1.4vmin;
+    transition: opacity .25s, transform .25s; max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* черга і QR «Взяти талон» */
+  .go-q { font-size: 1.9vmin; font-weight: 600; color: var(--mute); margin-top: .9vmin; }
+  .go-q b { color: var(--text); font-weight: 800; }
+  .take {
+    flex: none; display: flex; flex-direction: column; align-items: center; gap: .9vmin;
+    padding: 1.1vmin 1.1vmin .9vmin; border-radius: 1.6vmin; background: var(--yellow);
+    transition: opacity .4s;
+  }
+  .take-qr { display: block; width: 15.5vmin; height: 15.5vmin; border-radius: .8vmin; overflow: hidden; background: #fff; }
+  .take-qr svg { width: 100%; height: 100%; display: block; }
+  .take-cap { font-family: var(--f-display); font-weight: 700; font-size: 1.55vmin; color: #111; text-transform: uppercase; white-space: nowrap; }
+  .take.off { opacity: .3; }
+  body.display-only .go .ctl { display: none; }
+
+  /* «тільки табло»: кнопки керування живуть на телефоні */
+  body.display-only .ctl:not(.gear) { visibility: hidden; }
+  body.display-only .st, body.display-only .boxes button { pointer-events: none; }
+
+  /* індикатор зв'язку з пультом */
+  .link { display: flex; align-items: center; gap: .6vmin; color: var(--mute); }
+  .link svg { width: 2.4vmin; height: 2.4vmin; }
+  .link i { width: 1.1vmin; height: 1.1vmin; border-radius: 50%; background: #555; }
+  .link.up i { background: var(--green); box-shadow: 0 0 1vmin var(--green); }
+  .link.down i { background: var(--red); }
+  .link[hidden] { display: none; }
+
+  /* QR-пульт */
+  .pair { display: grid; grid-template-columns: auto 1fr; gap: 3.5vmin; align-items: center; margin-top: 2.5vmin; }
+  .qr { width: 40vmin; height: 40vmin; border-radius: 1.6vmin; overflow: hidden; background: #fff; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .pair p:first-child { margin-top: 0; }
+  .conn-list { font-family: var(--f-mono); font-size: 1.7vmin; color: var(--mute); margin-top: 1.6vmin; line-height: 1.6; }
+  .conn-list .up { color: var(--green); }
+  .conn-list .dn { color: var(--red); }
+  .url { font-family: var(--f-mono); font-size: 1.4vmin; color: var(--mute); word-break: break-all; margin-top: 1.4vmin; }
+  .card[data-kind="visitor"] { max-width: 104vmin; }
+  .steps { list-style: none; counter-reset: s; display: grid; gap: 2.4vmin; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 4.8vmin 1fr; gap: 1.8vmin; align-items: center;
+    font-size: 2.4vmin; line-height: 1.35; color: #d6d3cb; font-weight: 600; }
+  .steps li::before { content: counter(s); width: 4.8vmin; height: 4.8vmin; border-radius: 50%; background: var(--yellow); color: #111;
+    display: grid; place-items: center; font-family: var(--f-display); font-weight: 900; font-size: 2.4vmin; }
+  .steps b { color: var(--text); }
+
+  /* заставка «Відкрити вікно» */
+  .splash {
+    position: fixed; inset: 0; z-index: 9;
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 4vmin;
+    background: radial-gradient(circle at 50% 38%, #1f1f24, #0a0a0b 70%);
+  }
+  .splash[hidden] { display: none; }
+  .splash .pill { display: inline-block; }
+  .splash h1 {
+    font-family: var(--f-display); font-weight: 900; font-size: 8vmin; line-height: 1;
+    text-transform: uppercase; margin-top: 3vmin;
+  }
+  .splash h1 span { color: var(--red); text-shadow: 0 0 3vmin rgba(255,59,47,.6); }
+  .splash p { font-size: 2.3vmin; color: var(--mute); margin-top: 2vmin; font-weight: 600; }
+  .splash .btn.big { font-size: 3.2vmin; padding: 2.6vmin 6vmin; margin-top: 5vmin; border-radius: 2vmin; }
+  .splash .alt { display: block; margin: 2.4vmin auto 0; }
+
+  /* portrait tablets / phones */
+  @media (orientation: portrait) {
+    main { grid-template-columns: 1fr 1fr; grid-template-rows: 1.25fr 1fr; }
+    .now { grid-column: 1 / 3; grid-row: auto; }
+    .hd-mid, .brand span { display: none; }
+    .counter { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body data-status="open">
+<div class="app">
+
+  <header>
+    <div class="pill">ВІКНО № <span class="win-n">1</span></div>
+    <div class="hd-mid">Електронна черга</div>
+    <div class="chip note" id="chip" hidden></div>
+    <div class="spacer"></div>
+    <div class="link" id="link" title="Пульт з телефона" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><i></i>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+    <div class="brand"><b>ЦНАВ</b><span>Центр надання<br>адекватних відповідей</span></div>
+    <button class="gear ctl" id="btn-settings" aria-label="Налаштування">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <section class="panel now">
+      <div class="label">Зараз обслуговується</div>
+      <div class="screen" id="screen"></div>
+      <div class="sr" aria-live="polite" id="sr-now"></div>
+      <div class="go">
+        <div class="go-text">
+          <div class="go-to">Пройдіть до вікна <span style="white-space:nowrap">№ <span class="win-n">1</span>&nbsp;→</span></div>
+          <div class="go-wait">Очікування для наступного: <b id="wait">—</b></div>
+          <div class="go-q" id="queue-line">Черга порожня</div>
+        </div>
+        <button class="btn sq ctl" id="btn-prev" aria-label="Попередній номер">◀</button>
+        <button class="btn primary ctl" id="btn-next">Наступний ▶</button>
+        <button class="take" id="take" aria-label="QR-код: взяти електронний талон">
+          <span class="take-qr" id="take-qr"></span>
+          <span class="take-cap">📱 Взяти талон</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="label">Статус вікна</div>
+      <div class="status-list">
+        <button class="st g" data-status="open"><i></i><span><b>Відчинено</b><small>питайте сміливо</small></span></button>
+        <button class="st y" data-status="think"><i></i><span><b>Думаю</b><small id="think-sub">зачекайте 5 хвилин</small></span></button>
+        <button class="st r" data-status="closed"><i></i><span><b>Зачинено</b><small>я в потоці / в навушниках</small></span></button>
+      </div>
+    </section>
+
+    <section class="panel" id="limit-panel">
+      <div class="label">Денний ліміт питань</div>
+      <div class="lim-top">
+        <div class="lim-n" id="lim-n">0</div>
+        <div class="lim-of">/ <span id="lim-max">5</span></div>
+        <div class="lim-exh" id="lim-exh" hidden>Вичерпано</div>
+      </div>
+      <div class="boxes" id="boxes"></div>
+      <div class="lim-foot">
+        <div class="lim-note" id="lim-note">Оновлюється о 10:00. Залишок згорає.</div>
+        <button class="btn sq ctl" id="btn-q-minus" aria-label="Мінус питання">−</button>
+        <button class="btn primary ctl" id="btn-q-plus">+ Питання</button>
+      </div>
+    </section>
+  </main>
+
+  <section class="counter">
+    <div class="t">Днів без питання <mark>«а є хвилинка?»</mark></div>
+    <div class="days" id="days">0</div>
+    <button class="btn danger ctl" id="btn-incident">😩 Спитали</button>
+    <div class="rec" id="rec">Рекорд: <b>0</b><br>Але ми віримо.</div>
+  </section>
+
+  <div class="ticker" aria-hidden="true"><div class="track" id="track"></div></div>
+</div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="card" id="card"></div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<div class="splash" id="splash">
+  <div>
+    <div class="pill">ВІКНО № <span class="win-n">1</span></div>
+    <h1>Вікно <span>зачинене</span></h1>
+    <p>Прийом питань почнеться після натискання кнопки.</p>
+    <button class="btn primary big" id="btn-open">Відкрити вікно</button>
+    <button class="btn ghost alt" id="btn-splash-pair">📱 Підключити пульт з телефона</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/mqtt@5.14.1/dist/mqtt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="common.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { TYPES, ticketStr, plural } = CNAV;
+
+  // ---------------- data ----------------
+  const KEY = 'cnav-cherga-v1';
+  const defaults = () => ({
+    num: 0, limit: 5, used: 0, over: 0, day: null,
+    status: 'open', statusAt: Date.now(), note: '',
+    lastIncident: null, record: 0,
+    sound: true, voice: true, win: 1, wait: 0,
+    room: null, pub: null, localButtons: false,
+    tickets: [], issued: 0, called: [], epoch: 0, ratings: { sum: 0, count: 0 },
+  });
+  const WAITS = [
+    '5 хв (оптимістично)', '2–3 робочі дні', 'до кінця спринту', 'одна кава',
+    'після обіду', '≈ вічність', 'поки не загуглите', 'до наступної наради',
+    'до релізу', 'наступного кварталу', 'залежить від фондану', 'як пощастить',
+  ];
+  const TICKER = [
+    'Шановні відвідувачі! Перед питанням спробуйте вимкнути й увімкнути',
+    'Електронний талон — скануйте QR-код на табло',
+    '«Швидке питання» швидке лише для того, хто питає',
+    'Навушники — вікно зачинено. Один навушник — технічна перерва',
+    'Оплата приймається кавою. Решта не видається',
+    '«Я тільки спитати» не дає права проходити без черги',
+    'Талони з шоколадним фонданом обслуговуються без черги',
+    'Ваше питання дуже важливе для нас. Залишайтеся на лінії',
+    'Скарги приймаються в письмовому вигляді. Урна — під столом',
+    'Розібралися самі — отримайте медаль у талоні',
+  ];
+  const TICKER_CLOSED = ['Не турбувати', 'Я в потоці', 'Вікно тимчасово зачинене', 'Талон взяти можна, черга стоїть', 'Так, і ваше питання теж'];
+  const DIGIT_WORDS = ['нуль', 'один', 'два', 'три', 'чотири', 'п’ять', 'шість', 'сім', 'вісім', 'дев’ять'];
+
+  // ---------------- state ----------------
+  let S;
+  try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || '{}')); }
+  catch (e) { S = defaults(); }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const pad = n => String(n).padStart(2, '0');
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const workDayKey = () => ymd(new Date(Date.now() - 10 * 3600e3)); // день «починається» о 10:00
+  const calKey = () => ymd(new Date());
+  const daysBetween = (a, b) => {
+    const [y1, m1, d1] = a.split('-').map(Number), [y2, m2, d2] = b.split('-').map(Number);
+    return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 864e5);
+  };
+
+  function resetQueue() {
+    S.num = 0; S.issued = 0; S.called = []; S.tickets = [];
+    S.epoch = (S.epoch || 0) + 1; // талони відвідувачів зі старої черги стають недійсними
+  }
+
+  function rollover() {
+    const k = workDayKey();
+    if (S.day !== k) {
+      const first = S.day === null;
+      S.day = k; S.used = 0; S.over = 0; S.ratings = { sum: 0, count: 0 };
+      if (!first) resetQueue();
+      save();
+      if (!first) toast('Новий день — нова черга. Ліміт оновлено.');
+    }
+    if (!S.lastIncident) { S.lastIncident = calKey(); save(); }
+  }
+
+  // ---------------- display & ids ----------------
+  const setDisplay = CNAV.makeSeg7($('#screen'), 5).set;
+  if (!S.room) S.room = CNAV.randomId(12); // приватний код: пульт
+  if (!S.pub) S.pub = CNAV.randomId(10);   // публічний код: талони відвідувачів
+  save();
+
+  const isVip = t => t.t === 'vip';
+  const queueSorted = () => S.tickets.filter(t => t.s === 'wait').sort((a, b) => (isVip(b) - isVip(a)) || a.n - b.n);
+  const curTicket = () => S.tickets.find(t => t.s === 'now');
+  const ratingAvg = () => S.ratings.count ? Math.round(S.ratings.sum / S.ratings.count * 10) / 10 : null;
+  const boardDay = () => `${S.day}:${S.epoch || 0}`;
+  const visitorUrl = () => new URL('talon.html?p=' + S.pub, location.href).href;
+  const remoteUrl = () => new URL('remote.html?r=' + S.room, location.href).href;
+
+  // ---------------- render ----------------
+  function render() {
+    setDisplay(ticketStr(S.num));
+    $('#sr-now').textContent = 'Зараз обслуговується ' + ticketStr(S.num);
+    $('#wait').textContent = WAITS[S.wait % WAITS.length];
+    $$('.win-n').forEach(el => el.textContent = S.win);
+
+    const q = queueSorted();
+    $('#queue-line').innerHTML = q.length
+      ? `У черзі: <b>${q.length}</b> · далі ${q.slice(0, 4).map(t => `<b>${isVip(t) ? '🍫' : ''}${ticketStr(t.n)}</b>`).join(', ')}${q.length > 4 ? '…' : ''}`
+      : 'Черга порожня — саме час узяти талон';
+
+    // status
+    document.body.dataset.status = S.status;
+    $$('.st').forEach(b => b.classList.toggle('active', b.dataset.status === S.status));
+    renderThink();
+    renderNote();
+
+    // limit
+    $('#lim-n').textContent = S.used + S.over;
+    $('#lim-max').textContent = S.limit;
+    const exhausted = S.used >= S.limit;
+    $('#limit-panel').classList.toggle('exhausted', exhausted);
+    $('#lim-exh').hidden = !exhausted;
+    const boxes = $('#boxes');
+    if (boxes.children.length !== S.limit) {
+      boxes.innerHTML = Array.from({ length: S.limit }, (_, i) => `<button data-i="${i}" aria-label="Питання ${i + 1}"></button>`).join('');
+    }
+    [...boxes.children].forEach((b, i) => b.classList.toggle('on', i < S.used));
+    $('#lim-note').innerHTML = S.over > 0
+      ? `<b>+${S.over} понад ліміт</b> — заяви на розгляді.<br>Оновлюється о 10:00.`
+      : exhausted
+        ? 'Далі — лише письмово, у трьох примірниках, з печаткою.'
+        : 'Оновлюється о 10:00. Залишок згорає.';
+
+    // counter & rating
+    const d = daysWithout();
+    $('#days').textContent = d;
+    const rec = Math.max(S.record, d), avg = ratingAvg();
+    $('#rec').innerHTML = `Рекорд: <b>${rec} ${plural(rec, ['день', 'дні', 'днів'])}</b><br>` +
+      (avg !== null ? `Рейтинг вікна: <b>★ ${avg.toFixed(1)}</b> (${S.ratings.count})` : (rec < 3 ? 'Але ми віримо.' : 'Тримаємось!'));
+
+    document.body.classList.toggle('display-only', !S.localButtons);
+    publishState();
+  }
+
+  function daysWithout() { return Math.max(0, daysBetween(S.lastIncident, calKey())); }
+
+  function renderThink() {
+    const el = $('#think-sub');
+    if (S.status !== 'think') { el.textContent = 'зачекайте 5 хвилин'; return; }
+    const P = 5 * 60e3, el2 = Date.now() - S.statusAt;
+    const left = P - (el2 % P);
+    const m = Math.floor(left / 60e3), s = Math.floor(left % 60e3 / 1000);
+    el.textContent = (el2 >= P ? 'ну ще ' : 'зачекайте ') + `${m}:${pad(s)}`;
+  }
+
+  function renderClock() {
+    const d = new Date();
+    $('#clock').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  // табличка з пульта: «Поїхав на Мадейру… буду у 2027»
+  function renderNote() {
+    const chip = $('#chip');
+    chip.hidden = !S.note;
+    chip.textContent = S.note || '';
+    chip.title = S.note || '';
+    document.body.classList.toggle('has-note', !!S.note);
+  }
+  function setNote(v) {
+    S.note = String(v || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    save(); render(); buildTicker();
+  }
+
+  // ---------------- ticker ----------------
+  let tickerMode = null;
+  function buildTicker() {
+    const st = S.status === 'closed' ? 'closed' : 'open';
+    const mode = st + '|' + (S.note || '');
+    if (mode === tickerMode) return;
+    tickerMode = mode;
+    const list = (st === 'closed' ? TICKER_CLOSED : TICKER).map(CNAV.esc);
+    if (S.note) list.unshift(`📌 ${CNAV.esc(S.note)}`);
+    const once = list.map(m => `<span>${m}</span>`).join('<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>') + '<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>';
+    const track = $('#track');
+    track.innerHTML = once + once;
+    requestAnimationFrame(() => {
+      const half = track.scrollWidth / 2;
+      track.style.setProperty('--dur', Math.max(20, half / 70) + 's');
+    });
+  }
+
+  // ---------------- sound & voice ----------------
+  let ac = null;
+  function chime() {
+    if (!S.sound) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      const t0 = ac.currentTime + .02;
+      [[1046.5, 0], [784, .42]].forEach(([f, dt]) => {
+        [[1, .32, 'sine'], [2, .06, 'sine'], [3, .025, 'triangle']].forEach(([mul, vol, type]) => {
+          const o = ac.createOscillator(), g = ac.createGain();
+          o.type = type; o.frequency.value = f * mul;
+          g.gain.setValueAtTime(.0001, t0 + dt);
+          g.gain.exponentialRampToValueAtTime(vol, t0 + dt + .015);
+          g.gain.exponentialRampToValueAtTime(.0001, t0 + dt + 1.3);
+          o.connect(g); g.connect(ac.destination);
+          o.start(t0 + dt); o.stop(t0 + dt + 1.4);
+        });
+      });
+    } catch (e) {}
+  }
+
+  const hasSpeech = 'speechSynthesis' in window;
+  function ukVoice() {
+    if (!hasSpeech) return null;
+    return speechSynthesis.getVoices().find(v => /^uk/i.test(v.lang)) || null;
+  }
+  if (hasSpeech) speechSynthesis.onvoiceschanged = () => {};
+  function say(text, delay = 0) {
+    const v = ukVoice();
+    if (!S.voice || !v) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = v; u.lang = v.lang; u.rate = .95;
+    speechSynthesis.cancel();
+    setTimeout(() => speechSynthesis.speak(u), delay);
+  }
+  function announce() {
+    const digits = String(S.num % 1000).padStart(3, '0').split('').map(d => DIGIT_WORDS[d]).join(', ');
+    const win = S.win < 10 ? DIGIT_WORDS[S.win] : S.win;
+    const cur = curTicket();
+    const vip = cur && isVip(cur) ? 'Власника фондану ' : '';
+    say(`${vip}Талон пе, ${digits}. Пройдіть, будь ласка, до вікна номер ${win}.`, S.sound ? 1000 : 0);
+  }
+
+  // ---------------- queue actions ----------------
+  function flash() {
+    const sc = $('#screen');
+    sc.classList.remove('flash'); void sc.offsetWidth; sc.classList.add('flash');
+  }
+  // Наступний: спершу фондани, потім за номером. Якщо електронних талонів немає — просто +1 (паперові).
+  function next() {
+    const cur = curTicket();
+    if (cur) cur.s = 'done';
+    const q = queueSorted();
+    let n;
+    if (q.length) { q[0].s = 'now'; n = q[0].n; }
+    else { n = Math.max(S.issued, S.num) + 1; S.issued = n; }
+    S.num = n;
+    S.called.push(n); if (S.called.length > 150) S.called.shift();
+    let w; do { w = Math.floor(Math.random() * WAITS.length); } while (w === S.wait && WAITS.length > 1);
+    S.wait = w;
+    save(); render(); flash(); chime(); announce();
+  }
+  function prev() {
+    if (!S.called.length) { if (S.num > 0) { S.num--; save(); render(); } return; }
+    const curN = S.called.pop();
+    const cur = S.tickets.find(t => t.n === curN && t.s === 'now');
+    if (cur) cur.s = 'wait';
+    const pn = S.called.length ? S.called[S.called.length - 1] : 0;
+    const p = S.tickets.find(t => t.n === pn && t.s === 'done');
+    if (p) p.s = 'now';
+    S.num = pn;
+    save(); render();
+  }
+
+  function issueTicket({ vid = '', type = 'quick', text = '' }) {
+    const n = Math.max(S.issued, S.num) + 1;
+    S.issued = n;
+    const t = {
+      n, vid, v: vid.slice(0, 8), t: TYPES[type] ? type : 'quick',
+      text: String(text || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+      at: Date.now(), s: 'wait',
+    };
+    S.tickets.push(t);
+    if (S.tickets.length > 200) {
+      const i = S.tickets.findIndex(x => x.s === 'done' || x.s === 'cancel');
+      if (i >= 0) S.tickets.splice(i, 1);
+    }
+    save(); render();
+    toast(`🎫 Видано талон ${ticketStr(n)}${isVip(t) ? ' · 🍫 без черги' : ''}`);
+    if (/хвилинк/i.test(t.text)) setTimeout(() => { incident(); toast('Система виявила «хвилинку». Лічильник обнулено 😩'); }, 1500);
+    return t;
+  }
+
+  // ---------------- limit / status / incident ----------------
+  function addQuestion() {
+    if (S.used < S.limit) {
+      S.used++; save(); render();
+      if (S.used === S.limit) toast('Ліміт на сьогодні вичерпано 🫡');
+    } else {
+      S.over++; save(); render(); overLimitModal();
+    }
+  }
+  function removeQuestion() {
+    if (S.over > 0) S.over--; else if (S.used > 0) S.used--;
+    save(); render();
+  }
+  function setBox(i) {
+    S.used = i < S.used ? i : i + 1;
+    if (S.used < S.limit) S.over = 0;
+    save(); render();
+  }
+  function changeLimit(delta) {
+    S.limit = Math.min(20, Math.max(1, S.limit + delta));
+    if (delta < 0) S.used = Math.min(S.used, S.limit);
+    else if (S.over > 0) { const m = Math.min(S.over, S.limit - S.used); S.used += m; S.over -= m; }
+  }
+  function setStatus(st) {
+    if (S.status !== st || st === 'think') S.statusAt = Date.now();
+    S.status = st; save(); render(); buildTicker();
+  }
+  function incident() {
+    const d = daysWithout();
+    S.record = Math.max(S.record, d);
+    S.lastIncident = calKey();
+    save(); render();
+    const el = $('#days');
+    el.classList.remove('boom'); void el.offsetWidth; el.classList.add('boom');
+    toast(d > 0 ? `Серія з ${d} ${plural(d, ['дня', 'днів', 'днів'])} перервана 💔` : 'Знову. Сьогодні. Записали.');
+  }
+
+  // ---------------- modal / toast ----------------
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+  function openModal(html, onClick, kind = '') {
+    $('#card').innerHTML = html;
+    $('#card').dataset.kind = kind;
+    $('#modal').classList.add('open');
+    $('#card').onclick = e => {
+      const a = e.target.closest('[data-a]');
+      if (a) onClick(a.dataset.a, a);
+    };
+  }
+  function closeModal() { $('#modal').classList.remove('open'); $('#card').dataset.kind = ''; }
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+  function overLimitModal() {
+    openModal(`
+      <h3 class="red">Ліміт вичерпано</h3>
+      <p>Сьогодні вікно вже прийняло всі ${S.limit} ${plural(S.limit, ['питання', 'питання', 'питань'])}. Наступне — лише письмово, у трьох примірниках, з печаткою.</p>
+      <div class="row">
+        <button class="btn primary" data-a="apply">📝 Подати заяву</button>
+        <button class="btn ghost" data-a="close">Піду загуглю</button>
+      </div>`, (a) => {
+      if (a === 'close') return closeModal();
+      if (a === 'apply') {
+        const n = 1000 + Math.floor(Math.random() * 9000);
+        openModal(`
+          <h3>Заяву № ${n} прийнято</h3>
+          <p>Строк розгляду — 30 робочих днів. Відповідь надійде поштовим голубом.</p>
+          <p class="mono">Номер заяви збережіть. Його в нас ніхто не запише.</p>
+          <div class="row"><button class="btn primary" data-a="close">Чекатиму</button></div>`, closeModal, 'over');
+      }
+    }, 'over');
+  }
+
+  function settingsModal() {
+    const voiceOk = !!ukVoice();
+    const html = () => `
+      <h3>Налаштування</h3>
+      <div style="margin-top:2vmin">
+        <div class="set"><span>Денний ліміт питань</span>
+          <div class="step"><button class="btn sq" data-a="lim-">−</button><output>${S.limit}</output><button class="btn sq" data-a="lim+">+</button></div></div>
+        <div class="set"><span>Номер вікна</span>
+          <div class="step"><button class="btn sq" data-a="win-">−</button><output>${S.win}</output><button class="btn sq" data-a="win+">+</button></div></div>
+        <div class="set"><span>Звук «дзинь»</span>
+          <button class="toggle" data-a="sound" aria-pressed="${S.sound}" aria-label="Звук"></button></div>
+        <div class="set"><span>Голосове оголошення номера<small>${hasSpeech ? (voiceOk ? 'Український голос знайдено ✓' : 'На цьому пристрої немає українського голосу — буде лише «дзинь»') : 'Браузер не вміє говорити'}</small></span>
+          <button class="toggle" data-a="voice" aria-pressed="${S.voice}" aria-label="Голос"></button></div>
+        <div class="set"><span>Кнопки на табло<small>Вимкніть, якщо керуєте з телефона: на табло лишиться тільки ⚙</small></span>
+          <button class="toggle" data-a="buttons" aria-pressed="${S.localButtons}" aria-label="Кнопки на табло"></button></div>
+      </div>
+      <div class="row">
+        <button class="btn primary" data-a="pair">📱 Пульт з телефона</button>
+        <button class="btn" data-a="visitor">🎫 QR для відвідувачів</button>
+        <button class="btn" data-a="test">🔔 Тест оголошення</button>
+        <button class="btn" data-a="fs">⛶ На весь екран</button>
+        <button class="btn" data-a="reset-q">Очистити чергу</button>
+        <button class="btn ghost" data-a="reset-all">Скинути все</button>
+      </div>
+      <div class="row"><button class="btn primary" data-a="close">Готово</button></div>`;
+    const handler = (a) => {
+      switch (a) {
+        case 'lim-': changeLimit(-1); break;
+        case 'lim+': changeLimit(1); break;
+        case 'buttons': S.localButtons = !S.localButtons; break;
+        case 'pair': return pairModal();
+        case 'visitor': return visitorModal();
+        case 'win-': S.win = Math.max(1, S.win - 1); break;
+        case 'win+': S.win = Math.min(99, S.win + 1); break;
+        case 'sound': S.sound = !S.sound; break;
+        case 'voice': S.voice = !S.voice; break;
+        case 'test': chime(); announce(); return;
+        case 'fs': goFullscreen(); return;
+        case 'reset-q':
+          if (!confirm('Очистити чергу? Усі видані талони стануть недійсними.')) return;
+          resetQueue(); toast('Черга очищена: П-000'); break;
+        case 'reset-all':
+          if (!confirm('Скинути все: чергу, ліміт, рекорд, рейтинг і налаштування?')) return;
+          S = Object.assign(defaults(), { day: workDayKey(), lastIncident: calKey(), statusAt: Date.now(), room: S.room, pub: S.pub, epoch: (S.epoch || 0) + 1 });
+          tickerMode = null; buildTicker(); break;
+        case 'close': return closeModal();
+      }
+      save(); render(); openModal(html(), handler);
+    };
+    openModal(html(), handler);
+  }
+
+  function goFullscreen(quiet) {
+    const el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) { try { const p = req.call(el); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+    else if (!quiet) toast('Тут повноекранного режиму немає — додайте на головний екран');
+  }
+
+  // ---------------- зв'язок: пульт (приватно) і талони (публічно) ----------------
+  let bus = null, T = null, P = null, splashOpen = true;
+  let lastStateKey = '', lastBoardKey = '', rev = 0, brev = 0;
+  const seen = new Set();
+
+  function stateObj() {
+    const d = daysWithout(), cur = curTicket();
+    return {
+      v: 2, num: S.num, wait: WAITS[S.wait % WAITS.length],
+      status: S.status, statusAt: S.statusAt, note: S.note,
+      limit: S.limit, used: S.used, over: S.over,
+      days: d, record: Math.max(S.record, d), win: S.win,
+      sound: S.sound, voice: S.voice, audio: unlocked, splash: splashOpen,
+      cur: cur ? { n: cur.n, t: cur.t, text: cur.text } : null,
+      queue: queueSorted().map(t => ({ n: t.n, t: t.t, text: t.text })),
+      rating: ratingAvg(), ratings: S.ratings.count,
+    };
+  }
+  // Публічне табло для відвідувачів: без тексту питань і без повних id.
+  function boardObj() {
+    const d = daysWithout(), cur = curTicket();
+    return {
+      v: 2, day: boardDay(), num: S.num, wait: WAITS[S.wait % WAITS.length],
+      status: S.status, statusAt: S.statusAt, note: S.note,
+      limit: S.limit, used: S.used, over: S.over, days: d, win: S.win, open: !splashOpen,
+      cur: cur ? { n: cur.n, t: cur.t } : null,
+      queue: queueSorted().map(t => ({ n: t.n, t: t.t })),
+      tickets: S.tickets.slice(-50).map(t => ({ n: t.n, v: t.v, s: t.s, t: t.t })),
+      rating: ratingAvg(), ratings: S.ratings.count,
+    };
+  }
+  // Стан публікується як retained: телефон отримує його одразу після підключення.
+  function publishState(force) {
+    if (!bus) return;
+    const now = Date.now();
+    const o = stateObj(), key = JSON.stringify(o);
+    if (force || key !== lastStateKey) {
+      lastStateKey = key; rev = Math.max(now, rev + 1);
+      bus.publish(T.state, JSON.stringify(Object.assign(o, { rev, ts: now })), { retain: true, qos: 1 });
+    }
+    const b = boardObj(), bkey = JSON.stringify(b);
+    if (force || bkey !== lastBoardKey) {
+      lastBoardKey = bkey; brev = Math.max(now, brev + 1);
+      bus.publish(P.board, JSON.stringify(Object.assign(b, { rev: brev, ts: now })), { retain: true, qos: 1 });
+    }
+  }
+
+  // кожне повідомлення приходить з кожного брокера — пропускаємо повтори за id
+  function parseMsg(text) {
+    let m;
+    try { m = JSON.parse(text); } catch (e) { return null; }
+    if (!m || typeof m.id !== 'string' || seen.has(m.id)) return null;
+    seen.add(m.id);
+    if (seen.size > 500) seen.delete(seen.values().next().value);
+    if (typeof m.t === 'number' && Math.abs(Date.now() - m.t) > 10 * 60e3) return null; // протухле
+    return m;
+  }
+
+  function handleCmd(text) {
+    const m = parseMsg(text);
+    if (!m) return;
+    hideSplash(false);
+    switch (m.a) {
+      case 'next': next(); break;
+      case 'prev': prev(); break;
+      case 'q+':
+        addQuestion();
+        if ($('#card').dataset.kind === 'over') setTimeout(() => { if ($('#card').dataset.kind === 'over') closeModal(); }, 20000);
+        break;
+      case 'q-': removeQuestion(); break;
+      case 'status': if (['open', 'think', 'closed'].includes(m.v)) setStatus(m.v); break;
+      case 'note': if (m.v == null || typeof m.v === 'string') setNote(m.v); break;
+      case 'incident': incident(); break;
+      case 'limit': changeLimit(m.v > 0 ? 1 : -1); save(); render(); break;
+      case 'manual': issueTicket({ type: 'paper' }); break;
+      case 'test': chime(); announce(); break;
+      case 'reset-q': resetQueue(); save(); render(); toast('Черга очищена: П-000'); break;
+      case 'close': closeModal(); break;
+    }
+  }
+
+  function handleReq(text) {
+    const m = parseMsg(text);
+    if (!m || typeof m.vid !== 'string' || !/^[a-z0-9]{12,32}$/.test(m.vid)) return;
+    const mineActive = t => t.vid === m.vid && (t.s === 'wait' || t.s === 'now');
+    if (m.a === 'take') {
+      if (S.tickets.some(mineActive)) return publishState(true); // у цього телефона вже є талон
+      if (S.tickets.filter(t => t.s === 'wait').length >= 60) return;
+      issueTicket({ vid: m.vid, type: m.type, text: typeof m.text === 'string' ? m.text : '' });
+    } else if (m.a === 'cancel') {
+      const t = S.tickets.find(x => mineActive(x) && x.n === m.n);
+      if (!t) return;
+      t.s = 'cancel'; save(); render();
+      toast(m.self ? `🏅 ${ticketStr(t.n)} розібрався сам. Браво!` : `${ticketStr(t.n)} вибув із черги`);
+    } else if (m.a === 'rate') {
+      const t = S.tickets.find(x => x.vid === m.vid && x.n === m.n && x.s === 'done' && !x.r);
+      const st = Math.round(+m.stars);
+      if (!t || !(st >= 1 && st <= 5)) return;
+      t.r = st; S.ratings.sum += st; S.ratings.count++;
+      save(); render();
+      toast(`Нова оцінка: ${'★'.repeat(st)}${'☆'.repeat(5 - st)}`);
+    }
+  }
+
+  function connList(links) {
+    if (!links || !links.length) return '<span class="dn">Немає зв’язку з сервером — перевірте інтернет</span>';
+    return 'Зв’язок: ' + links.map(l => `<span class="${l.up ? 'up' : 'dn'}">${l.up ? '●' : '○'} ${l.name}</span>`).join('&nbsp;&nbsp; ');
+  }
+  function onLink(up, total, links) {
+    const el = $('#link');
+    el.hidden = !total;
+    el.classList.toggle('up', up > 0);
+    el.classList.toggle('down', up === 0);
+    $('#take').classList.toggle('off', up === 0);
+    const list = $('#pair-conn');
+    if (list) list.innerHTML = connList(links);
+  }
+  function connectBus() {
+    T = CNAV.topics.priv(S.room);
+    P = CNAV.topics.pub(S.pub);
+    bus = CNAV.createBus({
+      tag: 'display',
+      subs: [T.cmd, P.req],
+      will: { topic: T.online, payload: '0' },
+      onMessage: (topic, text) => {
+        if (topic === T.cmd) handleCmd(text);
+        else if (topic === P.req) handleReq(text);
+      },
+      onConn: onLink,
+      onLinkUp: () => { bus.publish(T.online, '1', { retain: true, qos: 1 }); publishState(true); },
+    });
+  }
+  function newRoom() {
+    if (bus) bus.close([T.state, T.online]);
+    S.room = CNAV.randomId(12); save();
+    lastStateKey = ''; lastBoardKey = '';
+    connectBus();
+  }
+
+  const qrOr = url => CNAV.qrSvg(url) || '<p class="mono" style="padding:2vmin;color:#111">QR не завантажився — відкрийте посилання.</p>';
+
+  function pairModal() {
+    const url = remoteUrl();
+    openModal(`
+      <h3>Пульт з телефона</h3>
+      <div class="pair">
+        <div class="qr">${qrOr(url)}</div>
+        <div>
+          <p>Наведіть камеру телефона на код — і телефон стане пультом: «Наступний», черга, статус, ліміт, «Спитали».</p>
+          <p class="mono">Пульт можна додати на головний екран телефона. Цей код відвідувачам не показуйте 😉</p>
+          <div class="conn-list" id="pair-conn">${connList(bus && bus.links)}</div>
+          <div class="url">${url}</div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn primary" data-a="close">Готово</button>
+        <button class="btn ghost" data-a="new">Новий код (відключити старі пульти)</button>
+      </div>`, (a) => {
+      if (a === 'close') return closeModal();
+      if (a === 'new' && confirm('Створити новий код? Усі підключені телефони-пульти відключаться.')) { newRoom(); pairModal(); }
+    });
+  }
+
+  function visitorModal() {
+    const url = visitorUrl();
+    openModal(`
+      <h3>Як взяти талон</h3>
+      <div class="pair">
+        <div class="qr">${qrOr(url)}</div>
+        <ol class="steps">
+          <li><span><b>Наведіть камеру</b> телефона на код</span></li>
+          <li><span><b>Оберіть послугу.</b> 🍫 З фонданом — без черги</span></li>
+          <li><span><b>Не закривайте сторінку.</b> Коли підійде черга, телефон дзенькне</span></li>
+          <li><span><b>Оцініть</b> обслуговування зірочками</span></li>
+        </ol>
+      </div>
+      <div class="row"><button class="btn primary" data-a="close">Зрозуміло</button></div>`, closeModal, 'visitor');
+    setTimeout(() => { if ($('#card').dataset.kind === 'visitor') closeModal(); }, 45000);
+  }
+
+  function hideSplash(byUser) {
+    if (!splashOpen) return;
+    splashOpen = false;
+    $('#splash').hidden = true;
+    if (byUser) { goFullscreen(true); chime(); }
+    wake();
+    publishState();
+  }
+
+  // ---------------- keep screen awake ----------------
+  let wakeLock = null;
+  async function keepAwake() {
+    try {
+      if ('wakeLock' in navigator && !wakeLock && document.visibilityState === 'visible') {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { keepAwake(); rollover(); render(); } });
+
+  // ---------------- idle mode: hide buttons after 20s ----------------
+  let idleTimer, swallowClick = false, unlocked = false;
+  const IDLE_MS = 20000;
+  function wake() {
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (!$('#modal').classList.contains('open')) document.body.classList.add('idle');
+    }, IDLE_MS);
+  }
+  document.addEventListener('pointerdown', e => {
+    if (!unlocked) { // перший дотик: розблокувати голос і не давати екрану гаснути
+      unlocked = true;
+      keepAwake();
+      if (hasSpeech) { try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (er) {} }
+      setTimeout(publishState, 0);
+    }
+    // звук на iPad можна «розбудити» лише з дотику — тож будимо при кожному
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state !== 'running') ac.resume(); } catch (er) {}
+    if (document.body.classList.contains('idle') && !splashOpen && !$('#modal').classList.contains('open')) {
+      swallowClick = true; // перший дотик лише показує кнопки
+      e.preventDefault(); e.stopPropagation();
+    }
+    wake();
+  }, true);
+  document.addEventListener('click', e => {
+    if (swallowClick) { swallowClick = false; e.preventDefault(); e.stopPropagation(); }
+  }, true);
+  document.addEventListener('keydown', e => {
+    wake();
+    if ($('#modal').classList.contains('open')) { if (e.key === 'Escape') closeModal(); return; }
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft') prev();
+    else if (e.key === '+' || e.key === '=') addQuestion();
+    else if (e.key === '-') removeQuestion();
+    else if (e.key === '1') setStatus('open');
+    else if (e.key === '2') setStatus('think');
+    else if (e.key === '3') setStatus('closed');
+  });
+
+  // ---------------- wire up ----------------
+  $('#btn-next').onclick = next;
+  $('#btn-prev').onclick = prev;
+  $('#btn-q-plus').onclick = addQuestion;
+  $('#btn-q-minus').onclick = removeQuestion;
+  $('#btn-incident').onclick = incident;
+  $('#btn-settings').onclick = settingsModal;
+  $('#boxes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setBox(+b.dataset.i); });
+  $$('.st').forEach(b => b.onclick = () => setStatus(b.dataset.status));
+  $('#take').onclick = () => { if (!document.body.classList.contains('idle')) visitorModal(); };
+
+  $('#btn-open').onclick = () => hideSplash(true);
+  $('#btn-splash-pair').onclick = () => { hideSplash(false); pairModal(); };
+
+  $('#take-qr').innerHTML = CNAV.qrSvg(visitorUrl());
+
+  connectBus();
+  rollover();
+  render();
+  renderClock();
+  buildTicker();
+  wake();
+  setInterval(() => { rollover(); renderClock(); renderThink(); }, 1000);
+  setInterval(render, 60000);
+  setInterval(() => publishState(true), 60000); // «пульс», щоб телефони бачили, що табло живе
+  if (document.fonts) document.fonts.ready.then(() => { tickerMode = null; buildTicker(); });
+})();
+</script>
+</body>
+</html>

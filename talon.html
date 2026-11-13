@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ЦНАВ · Електронний талон</title>
+<meta name="description" content="Візьміть електронний талон у Вікно № 1 і стежте за своєю чергою.">
+<meta name="theme-color" content="#0e0e0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0f; --panel: #17171a; --line: #2a2a2f; --text: #f3f0e8; --mute: #8d8b85;
+    --yellow: #FFD23F; --led: #ff3b2f; --led-off: #26110f;
+    --green: #2fd27a; --amber: #ffb800; --red: #ff3b2f; --paper: #f7f3e9;
+    --f-display: Unbounded, "Arial Black", system-ui, sans-serif;
+    --f-body: Manrope, system-ui, -apple-system, sans-serif;
+    --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--f-body);
+    min-height: 100vh; min-height: 100dvh;
+    padding: max(12px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; touch-action: manipulation; }
+  .wrap { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  header { display: flex; align-items: center; gap: 10px; padding: 4px 0 2px; }
+  .brand { font-family: var(--f-display); font-weight: 900; font-size: 15px; background: var(--yellow); color: #111; padding: 2px 8px; }
+  .hd { font-family: var(--f-mono); font-weight: 700; font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--mute); }
+  .conn { margin-left: auto; display: flex; align-items: center; gap: 7px; font-family: var(--f-mono); font-size: 11px; color: var(--mute); white-space: nowrap; }
+  .conn i { width: 9px; height: 9px; border-radius: 50%; background: #555; flex: none; }
+  .conn.on i { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .conn.off i { background: var(--red); }
+  @media (max-width: 370px) { .hd { display: none; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .label { font-family: var(--f-mono); font-weight: 700; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--mute); }
+
+  .screen {
+    margin-top: 10px; height: 84px; padding: 12px 18px;
+    background: #070707; border-radius: 10px; box-shadow: inset 0 0 24px rgba(0,0,0,.9);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .screen svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(255,59,47,.55)); }
+  .screen .s { fill: var(--led-off); }
+  .screen .s.on { fill: var(--led); }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .facts div { background: rgba(255,255,255,.03); border-radius: 10px; padding: 8px 10px; }
+  .facts small { display: block; font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--mute); }
+  .facts b { display: flex; align-items: center; gap: 6px; font-family: var(--f-display); font-weight: 700; font-size: 13px; margin-top: 4px; white-space: nowrap; }
+  .facts b i { width: 9px; height: 9px; border-radius: 50%; background: #555; flex: none; }
+  .facts b i.g { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .facts b i.y { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .facts b i.r { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  .banner { border-radius: 12px; padding: 11px 13px; font-size: 13.5px; font-weight: 600; line-height: 1.45; margin-top: 12px;
+    background: rgba(255,59,47,.1); border: 1px solid rgba(255,59,47,.55); color: #ffc2bd; }
+  .banner.info { background: rgba(255,210,63,.08); border-color: rgba(255,210,63,.5); color: #ffe7a3; }
+
+  .h { font-family: var(--f-display); font-weight: 900; font-size: 22px; text-transform: uppercase; line-height: 1.1; }
+  .center { text-align: center; }
+  .mute { color: var(--mute); font-weight: 600; line-height: 1.5; font-size: 15px; }
+  .view { display: flex; flex-direction: column; gap: 12px; }
+
+  /* вибір послуги */
+  .svc { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .svc button {
+    text-align: left; border: 2px solid var(--line); border-radius: 14px; padding: 12px;
+    display: flex; flex-direction: column; gap: 4px; background: var(--panel); min-height: 112px;
+    transition: border-color .15s, background .15s, transform .08s;
+  }
+  .svc button:active { transform: scale(.97); }
+  .svc i { font-style: normal; font-size: 26px; line-height: 1; }
+  .svc b { font-family: var(--f-display); font-weight: 700; font-size: 13px; line-height: 1.2; margin-top: 4px; }
+  .svc small { color: var(--mute); font-size: 12px; font-weight: 600; line-height: 1.3; }
+  .svc button.on { border-color: var(--yellow); background: rgba(255,210,63,.07); }
+  .cake { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; font-weight: 600; line-height: 1.4; color: #ffe7a3;
+    background: rgba(255,210,63,.08); border: 1px solid rgba(255,210,63,.5); border-radius: 12px; padding: 11px 13px; }
+  .cake input { width: 20px; height: 20px; accent-color: var(--yellow); flex: none; margin-top: 1px; }
+  .cake.shake { animation: shake .45s; }
+  @keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field span { font-weight: 700; font-size: 14px; }
+  .field em { font-style: normal; color: var(--mute); font-weight: 600; }
+  .field input {
+    font: inherit; font-size: 16px; color: var(--text); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; outline: none;
+  }
+  .field input:focus { border-color: var(--yellow); }
+  .field input::placeholder { color: #5f5d58; }
+
+  .btn {
+    font-family: var(--f-display); font-weight: 700; font-size: 15px;
+    border-radius: 14px; padding: 0 18px; min-height: 54px; width: 100%;
+    background: var(--line); color: var(--text);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform .08s, opacity .2s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--yellow); color: #111; }
+  .btn.green { background: var(--green); color: #062b16; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--mute); }
+  .btn.big { min-height: 64px; font-size: 18px; border-radius: 16px; }
+  .btn:disabled { opacity: .45; }
+  .hint { font-size: 12.5px; color: var(--mute); text-align: center; line-height: 1.5; font-weight: 600; }
+
+  /* «друкуємо» */
+  .printer { margin: 34px auto 4px; width: 230px; }
+  .slot { height: 18px; border-radius: 9px; background: #000; border: 1px solid var(--line); }
+  .paper {
+    width: 186px; margin: -8px auto 0; height: 0; border-radius: 0 0 6px 6px;
+    background: repeating-linear-gradient(var(--paper) 0 14px, #d9d3c4 14px 15px);
+    animation: feed 1.3s ease-in-out infinite;
+  }
+  @keyframes feed { 0% { height: 0; opacity: 1; } 75% { height: 130px; opacity: 1; } 100% { height: 130px; opacity: 0; } }
+
+  /* паперовий талон */
+  .ticket {
+    position: relative; background: var(--paper); color: #141414;
+    border-radius: 12px; padding: 18px 20px 16px;
+    font-family: var(--f-mono); font-size: 12.5px; line-height: 1.5;
+    box-shadow: 0 14px 34px rgba(0,0,0,.5);
+    animation: printIn .5s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes printIn { from { transform: translateY(-24px) scaleY(.92); opacity: 0; } }
+  .ticket.vip { background: var(--yellow); }
+  .t-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #141414; padding-bottom: 7px; }
+  .t-top b { font-family: var(--f-display); font-weight: 900; font-size: 15px; }
+  .t-top span { font-size: 10.5px; letter-spacing: .14em; font-weight: 700; }
+  .t-lbl { margin-top: 12px; font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: #6b665c; font-weight: 700; }
+  .t-num { font-family: var(--f-display); font-weight: 900; font-size: 58px; line-height: 1.02; letter-spacing: -.01em; }
+  .t-type { font-weight: 700; margin-top: 4px; }
+  .t-text { margin-top: 6px; color: #4a463e; font-style: italic; word-break: break-word; }
+  .t-rule { position: relative; border-top: 2px dashed #141414; margin: 14px -20px 10px; }
+  .t-rule::before, .t-rule::after { content: ""; position: absolute; top: -11px; width: 20px; height: 20px; border-radius: 50%; background: var(--bg); }
+  .t-rule::before { left: -10px; } .t-rule::after { right: -10px; }
+  .t-row { display: flex; justify-content: space-between; gap: 10px; }
+  .t-row span { color: #6b665c; }
+  .t-row b { text-align: right; }
+  .t-called { margin-top: 10px; background: #141414; color: var(--yellow); font-family: var(--f-display); font-weight: 700; text-transform: uppercase; font-size: 13px; text-align: center; padding: 9px; border-radius: 8px; }
+  .t-bc { margin-top: 12px; }
+  .t-bc svg { width: 100%; height: 38px; display: block; }
+  .t-bc small { display: block; font-size: 10px; letter-spacing: .18em; text-align: center; margin-top: 3px; }
+  .t-fine { margin-top: 8px; font-size: 10px; color: #6b665c; line-height: 1.4; text-align: center; }
+
+  /* хто переді мною */
+  .lane { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .chip {
+    font-family: var(--f-display); font-weight: 700; font-size: 12px; white-space: nowrap;
+    padding: 7px 10px; border-radius: 9px; background: rgba(255,255,255,.06);
+  }
+  .chip.cur { background: rgba(255,59,47,.15); color: #ffb0a9; }
+  .chip.me { background: var(--yellow); color: #111; }
+  .chip.more { background: none; color: var(--mute); }
+  .lane .arr { color: var(--mute); font-size: 13px; }
+  .coffee { margin-top: 12px; font-weight: 700; font-size: 15px; line-height: 1.45; }
+  .coffee small { display: block; color: var(--mute); font-weight: 600; font-size: 13px; margin-top: 2px; }
+  .cups { font-size: 20px; letter-spacing: 2px; margin-top: 4px; }
+
+  /* оцінка */
+  .big-emoji { font-size: 64px; text-align: center; margin-top: 24px; line-height: 1; }
+  .stars { display: flex; justify-content: center; gap: 6px; margin-top: 4px; }
+  .stars button { font-size: 40px; line-height: 1; color: #3a3a40; padding: 4px; transition: color .15s, transform .1s; }
+  .stars button.on { color: var(--yellow); text-shadow: 0 0 14px rgba(255,210,63,.5); }
+  .stars button:active { transform: scale(.9); }
+  .stars.rated { pointer-events: none; }
+  .reply { font-weight: 700; font-size: 16px; line-height: 1.45; min-height: 1.5em; }
+
+  .medal { font-size: 96px; text-align: center; margin-top: 24px; line-height: 1; animation: swing 2.2s ease-in-out infinite; transform-origin: 50% 0; }
+  @keyframes swing { 50% { transform: rotate(8deg); } }
+
+  /* «ваша черга» */
+  .turn {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px;
+    background: var(--yellow); color: #111;
+    animation: pulse .8s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { to { background: #fff6cf; } }
+  .turn-lbl { font-family: var(--f-display); font-weight: 900; font-size: 30px; text-transform: uppercase; line-height: 1.05; }
+  .turn-num { font-family: var(--f-display); font-weight: 900; font-size: 92px; line-height: 1; margin-top: 14px; letter-spacing: -.02em; }
+  .turn-go { font-weight: 800; font-size: 19px; margin-top: 16px; }
+  .turn .btn { background: #111; color: var(--yellow); margin: 30px auto 0; max-width: 260px; }
+
+  .empty { text-align: center; padding-top: 16vh; }
+  .empty .h { margin-top: 18px; }
+  .empty p { margin-top: 12px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); z-index: 30;
+    transform: translate(-50%, 12px); opacity: 0; pointer-events: none;
+    background: var(--text); color: var(--bg); font-weight: 700; font-size: 14px;
+    padding: 12px 18px; border-radius: 12px; transition: opacity .2s, transform .2s;
+    width: max-content; max-width: calc(100vw - 32px); text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app" hidden>
+  <header>
+    <div class="brand">ЦНАВ</div>
+    <div class="hd">Електронна черга</div>
+    <div class="conn" id="conn"><i></i><span>з’єднання…</span></div>
+  </header>
+
+  <section class="card">
+    <div class="label">Зараз обслуговується · Вікно № <span class="win">1</span></div>
+    <div class="screen" id="screen"></div>
+    <div class="facts">
+      <div><small>Вікно</small><b id="f-status"><i></i>—</b></div>
+      <div><small>У черзі</small><b id="f-queue">—</b></div>
+      <div><small>Ліміт</small><b id="f-limit">—</b></div>
+    </div>
+    <div class="banner info" id="b-note" hidden></div>
+    <div class="banner" id="b-offline" hidden>Табло не на зв’язку. Можливо, оператор пішов по каву разом із планшетом. Спробуйте трохи згодом.</div>
+    <div class="banner" id="b-closed" hidden>🔴 Оператор у потоці. Талон узяти можна, але черга стоїть.</div>
+    <div class="banner info" id="b-splash" hidden>Вікно ще не відкрилося. Оператор, мабуть, по каву ☕</div>
+  </section>
+
+  <!-- 1. вибір послуги -->
+  <section class="view" id="v-take" hidden>
+    <h1 class="h">Оберіть послугу</h1>
+    <div class="svc" id="svc">
+      <button data-type="quick" class="on"><i>⚡</i><b>Швидке питання</b><small>насправді хвилин сорок</small></button>
+      <button data-type="look"><i>👀</i><b>«Просто глянь»</b><small>глянути ≠ подивитися</small></button>
+      <button data-type="hard"><i>🧠</i><b>Складне питання</b><small>краще з кавою</small></button>
+      <button data-type="vip"><i>🍫</i><b>З фонданом</b><small>шоколадним · без черги</small></button>
+    </div>
+    <label class="cake" id="cake" hidden><input type="checkbox" id="cake-ok"><span>Підтверджую наявність шоколадного фондану (теплого, з рідкою серединкою). Хибне підтвердження карається чергою до кінця кварталу.</span></label>
+    <label class="field"><span>Суть питання одним реченням <em>(можна не писати)</em></span>
+      <input id="q-text" maxlength="80" autocomplete="off" enterkeyhint="done" placeholder="Не вміщається в речення — це нарада"></label>
+    <div class="banner" id="b-limit" hidden>Денний ліміт питань вичерпано. Талон видамо, але питання приймуть лише письмово 📝</div>
+    <button class="btn primary big" id="btn-take">Взяти талон</button>
+    <p class="hint">Талон живе на цій сторінці — не закривайте її, вас покличуть.</p>
+  </section>
+
+  <!-- 2. друк -->
+  <section class="view" id="v-print" hidden>
+    <div class="printer"><div class="slot"></div><div class="paper"></div></div>
+    <p class="center mute">Друкуємо талон…</p>
+  </section>
+
+  <!-- 3. талон -->
+  <section class="view" id="v-ticket" hidden>
+    <div class="ticket" id="ticket">
+      <div class="t-top"><b>ЦНАВ</b><span>ВІКНО № <span class="win">1</span></span></div>
+      <div class="t-lbl">Ваш номер</div>
+      <div class="t-num" id="t-num">П-000</div>
+      <div class="t-type" id="t-type"></div>
+      <div class="t-text" id="t-text"></div>
+      <div class="t-rule"></div>
+      <div class="t-row"><span>Видано</span><b id="t-at">—</b></div>
+      <div class="t-row"><span>Перед вами</span><b id="t-ahead">—</b></div>
+      <div class="t-row"><span>Очікування</span><b id="t-wait">—</b></div>
+      <div class="t-called" id="t-called" hidden>Вас викликано — до вікна!</div>
+      <div class="t-bc" id="t-bc"></div>
+      <div class="t-fine">Дійсний до кінця дня. Обміну не підлягає. Фондан не повертається.</div>
+    </div>
+    <div class="card">
+      <div class="label">Ваша черга</div>
+      <div class="lane" id="lane"></div>
+      <div class="coffee" id="coffee"></div>
+    </div>
+    <button class="btn green" id="btn-self">🎉 Я вже сам розібрався</button>
+    <button class="btn ghost" id="btn-cancel">Відмовитися від талона</button>
+  </section>
+
+  <!-- 4. обслуговано -->
+  <section class="view" id="v-done" hidden>
+    <div class="big-emoji">🙏</div>
+    <h1 class="h center">Дякуємо за звернення!</h1>
+    <p class="center mute">Оцініть якість обслуговування у Вікні № <span class="win">1</span></p>
+    <div class="stars" id="stars">
+      <button data-s="1" aria-label="1 зірка">★</button><button data-s="2" aria-label="2 зірки">★</button><button data-s="3" aria-label="3 зірки">★</button><button data-s="4" aria-label="4 зірки">★</button><button data-s="5" aria-label="5 зірок">★</button>
+    </div>
+    <p class="center reply" id="reply"></p>
+    <button class="btn primary" data-new>Взяти новий талон</button>
+  </section>
+
+  <!-- 5. медаль -->
+  <section class="view" id="v-medal" hidden>
+    <div class="medal">🏅</div>
+    <h1 class="h center">Медаль «Розібрався сам»</h1>
+    <p class="center mute">Вручається за проявлену самостійність і повагу до чужого фокусу. Оператор пишається вами (мовчки).</p>
+    <button class="btn primary" data-new>Взяти новий талон</button>
+  </section>
+
+  <!-- 6. анульовано -->
+  <section class="view" id="v-void" hidden>
+    <div class="big-emoji">🗂️</div>
+    <h1 class="h center">Талон анульовано</h1>
+    <p class="center mute">Чергу очищено або почався новий операційний день. Таке буває навіть у найкращих установах.</p>
+    <button class="btn primary" data-new>Взяти новий талон</button>
+  </section>
+</div>
+
+<div class="turn" id="turn" hidden>
+  <div>
+    <div class="turn-lbl">Ваша черга!</div>
+    <div class="turn-num" id="turn-num">П-000</div>
+    <div class="turn-go">Пройдіть до вікна № <span class="win">1</span> →</div>
+    <button class="btn big" id="btn-going">Іду!</button>
+  </div>
+</div>
+
+<div class="wrap empty" id="empty" hidden>
+  <div><span class="brand">ЦНАВ</span></div>
+  <h1 class="h">Електронна черга</h1>
+  <p class="mute">Щоб узяти талон, відскануйте QR-код на табло біля Вікна № 1.</p>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://unpkg.com/mqtt@5.14.1/dist/mqtt.min.js"></script>
+<script src="common.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { TYPES, ticketStr, plural, esc, randomId } = CNAV;
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const pad = n => String(n).padStart(2, '0');
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+  };
+
+  // ---- публічний код табло ----
+  const params = new URLSearchParams(location.search);
+  let pub = params.get('p') || store.get('cnav-visitor-pub');
+  if (!pub || !/^[a-z0-9]{6,32}$/.test(pub)) { $('#empty').hidden = false; return; }
+  store.set('cnav-visitor-pub', pub);
+  if (params.get('p') !== pub) history.replaceState(null, '', '?p=' + pub);
+  $('#app').hidden = false;
+
+  // ---- хто я ----
+  let vid = store.get('cnav-vid');
+  if (!vid || !/^[a-z0-9]{12,32}$/.test(vid)) { vid = randomId(20); store.set('cnav-vid', vid); }
+  const v8 = vid.slice(0, 8);
+  let my = null;
+  try { my = JSON.parse(store.get('cnav-my') || 'null'); } catch (e) {}
+  if (my && my.pub !== pub) my = null;
+  const saveMy = () => my ? store.set('cnav-my', JSON.stringify(my)) : store.del('cnav-my');
+
+  const seg = CNAV.makeSeg7($('#screen'), 5);
+  let board = null, up = 0, pending = null, printUntil = 0, lastPhase = null, type = 'quick';
+  const startedAt = Date.now();
+  const P = CNAV.topics.pub(pub);
+
+  const bus = CNAV.createBus({
+    tag: 'talon',
+    subs: [P.board],
+    onMessage(topic, text) {
+      if (topic !== P.board || !text) return;
+      try {
+        const b = JSON.parse(text);
+        if (!board || b.rev > board.rev) { board = b; onBoard(); }
+      } catch (e) {}
+    },
+    onConn(n) { up = n; render(); },
+  });
+  const fresh = () => !!board && Date.now() - board.ts < 150e3;
+  const send = msg => bus.publish(P.req, JSON.stringify(Object.assign(msg, { vid, id: randomId(10), t: Date.now() })), { qos: 1 });
+
+  function onBoard() {
+    const active = board.tickets.filter(t => t.v === v8 && (t.s === 'wait' || t.s === 'now')).sort((a, b) => b.n - a.n)[0];
+    if (pending && active) {
+      my = { pub, n: active.n, day: board.day, type: active.t, text: pending.text, at: Date.now() };
+      pending = null; saveMy();
+    } else if (!my && !pending && active) { // відновлюємо талон, якщо сторінку перезавантажили
+      my = { pub, n: active.n, day: board.day, type: active.t, text: '', at: Date.now() };
+      saveMy();
+    }
+    render();
+  }
+
+  // ---- у якій ми фазі ----
+  function phase() {
+    if (pending || Date.now() < printUntil) return 'print';
+    if (!my) return 'take';
+    if (my.final) return my.final;
+    if (!board) return 'ticket';
+    if (board.day !== my.day) return 'void';
+    const t = board.tickets.find(x => x.n === my.n && x.v === v8);
+    if (!t) return 'done';
+    if (t.s === 'wait') return 'ticket';
+    if (t.s === 'now') return 'now';
+    if (t.s === 'done') return 'done';
+    return 'void';
+  }
+
+  // ---- малювання ----
+  const STATUS = { open: ['Відчинено', 'g'], think: ['Думаю', 'y'], closed: ['Зачинено', 'r'] };
+  function render() {
+    const on = fresh();
+    const conn = $('#conn');
+    conn.className = 'conn ' + (on ? 'on' : (up ? 'off' : ''));
+    conn.lastElementChild.textContent = !bus.ok ? 'немає зв’язку' : !up ? 'з’єднання…' : on ? 'на зв’язку' : 'табло офлайн';
+    $('#b-offline').hidden = on || Date.now() - startedAt < 6000;
+
+    if (board) {
+      seg.set(ticketStr(board.num));
+      $$('.win').forEach(e => e.textContent = board.win);
+      const [sn, sc] = STATUS[board.status] || STATUS.open;
+      $('#f-status').innerHTML = `<i class="${sc}"></i>${sn}`;
+      $('#f-queue').textContent = board.queue.length;
+      $('#f-limit').textContent = `${Math.min(board.used + board.over, 99)}/${board.limit}`;
+      $('#b-closed').hidden = !(on && board.status === 'closed');
+      $('#b-splash').hidden = !(on && !board.open);
+      $('#b-limit').hidden = board.used < board.limit;
+      $('#b-note').hidden = !board.note;
+      $('#b-note').textContent = board.note ? '📌 ' + board.note : '';
+    }
+
+    const ph = phase();
+    ['take', 'print', 'ticket', 'done', 'medal', 'void'].forEach(v => $('#v-' + v).hidden = (ph === 'now' ? 'ticket' : ph) !== v);
+    $('#btn-take').disabled = !on;
+
+    if (ph === 'ticket' || ph === 'now') renderTicket(ph === 'now');
+    if (ph === 'done') renderDone();
+
+    // «Ваша черга!» — один раз на кожен виклик
+    if (ph === 'now' && lastPhase !== 'now' && lastPhase !== null) alertTurn();
+    if (ph === 'now' && lastPhase === null && my && my.going !== my.n) alertTurn();
+    $('#turn').hidden = !(ph === 'now' && my && my.going !== my.n);
+    if (ph !== 'now') stopTitle();
+    if (['done', 'medal', 'void', 'take'].includes(ph)) releaseAwake();
+    lastPhase = ph;
+  }
+
+  function renderTicket(called) {
+    const ty = TYPES[my.type] || TYPES.quick;
+    $('#ticket').classList.toggle('vip', my.type === 'vip');
+    $('#t-num').textContent = ticketStr(my.n);
+    $('#turn-num').textContent = ticketStr(my.n);
+    $('#t-type').textContent = `${ty.icon} ${ty.name}`;
+    $('#t-text').textContent = my.text ? `«${my.text}»` : '';
+    const at = new Date(my.at);
+    $('#t-at').textContent = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
+    $('#t-called').hidden = !called;
+    if ($('#t-bc').dataset.n !== String(my.n)) { $('#t-bc').innerHTML = barcode(my.n); $('#t-bc').dataset.n = my.n; }
+    if (!board) return;
+
+    $('#t-wait').textContent = called ? 'вже!' : board.wait;
+    const q = board.queue, idx = q.findIndex(t => t.n === my.n), ahead = Math.max(0, idx);
+    $('#t-ahead').textContent = called ? '0 — ви біля вікна' : `${ahead} ${plural(ahead, ['особа', 'особи', 'осіб'])}`;
+
+    // доріжка черги
+    let lane = '';
+    if (board.num > 0 && !called) lane += `<span class="chip cur">біля вікна ${ticketStr(board.num)}</span><span class="arr">→</span>`;
+    const before = idx > 0 ? q.slice(0, idx) : [];
+    before.slice(0, 4).forEach(t => { lane += `<span class="chip">${t.t === 'vip' ? '🍫' : ''}${ticketStr(t.n)}</span>`; });
+    if (before.length > 4) lane += `<span class="chip more">+${before.length - 4}</span>`;
+    if (before.length) lane += '<span class="arr">→</span>';
+    lane += `<span class="chip me">ВИ · ${ticketStr(my.n)}</span>`;
+    $('#lane').innerHTML = lane;
+
+    let c;
+    if (called) c = 'Вас викликали! Пройдіть до вікна 🏃';
+    else if (ahead === 0) c = `Ви наступні! Тримайте питання напоготові 🫡`;
+    else c = `≈ ${ahead} ${plural(ahead, ['кава', 'кави', 'кав'])} очікування<div class="cups">${'☕'.repeat(Math.min(ahead, 8))}${ahead > 8 ? '…' : ''}</div>`;
+    let note = '';
+    if (!called && board.status === 'closed') note = '+ ∞: оператор у потоці';
+    else if (!called && board.status === 'think') note = '+ 5 хвилин: оператор думає';
+    else if (!called && my.type === 'vip') note = '🍫 Фондан відкриває всі двері: ви попереду звичайних питань';
+    $('#coffee').innerHTML = c + (note ? `<small>${note}</small>` : '');
+  }
+
+  const REPLIES = {
+    5: 'Дякуємо! Оператор отримає премію. (Ні.)',
+    4: 'Дякуємо! Майже ідеально — як і все в цьому офісі.',
+    3: 'Стабільно. Як Wi-Fi у переговорці.',
+    2: 'Скаргу зафіксовано. Урна — під столом.',
+    1: 'Ваш відгук дуже важливий для нас. Його вже передано в урну.',
+  };
+  function renderDone() {
+    const r = my && my.rated;
+    $$('#stars button').forEach(b => b.classList.toggle('on', r ? +b.dataset.s <= r : false));
+    $('#stars').classList.toggle('rated', !!r);
+    $('#reply').textContent = r ? REPLIES[r] : '';
+  }
+
+  // фейковий штрихкод: 482 — код України
+  function barcode(n) {
+    let s = (n * 7919 + 31) % 2147483647 || 1;
+    const rnd = () => (s = s * 16807 % 2147483647) / 2147483647;
+    let x = 0, rects = '';
+    while (x < 196) { const w = 1 + Math.floor(rnd() * 3); rects += `<rect x="${x}" width="${w}" height="40"/>`; x += w + 1 + Math.floor(rnd() * 2.4); }
+    return `<svg viewBox="0 0 198 40" preserveAspectRatio="none" fill="#141414" aria-hidden="true">${rects}</svg><small>4 820000 ${String(n).padStart(5, '0')} ${(n * 7) % 10}</small>`;
+  }
+
+  // ---- звук, вібрація, заголовок, екран не гасне ----
+  let ac = null, titleTimer = null, wakeLock = null;
+  const baseTitle = document.title;
+  function unlockAudio() {
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state !== 'running') ac.resume(); } catch (e) {}
+  }
+  function chime() {
+    try {
+      if (!ac) return;
+      const t0 = ac.currentTime + .02;
+      [[1046.5, 0], [784, .42], [1046.5, .84]].forEach(([f, dt]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.frequency.value = f;
+        g.gain.setValueAtTime(.0001, t0 + dt);
+        g.gain.exponentialRampToValueAtTime(.35, t0 + dt + .015);
+        g.gain.exponentialRampToValueAtTime(.0001, t0 + dt + 1.1);
+        o.connect(g); g.connect(ac.destination);
+        o.start(t0 + dt); o.stop(t0 + dt + 1.2);
+      });
+    } catch (e) {}
+  }
+  function alertTurn() {
+    chime();
+    if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 800]);
+    stopTitle();
+    let f = false;
+    titleTimer = setInterval(() => { f = !f; document.title = f ? '🔔 ВАША ЧЕРГА!' : baseTitle; }, 900);
+  }
+  function stopTitle() { if (titleTimer) { clearInterval(titleTimer); titleTimer = null; document.title = baseTitle; } }
+  async function keepAwake() {
+    try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
+  }
+  function releaseAwake() { if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; } }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && my && !my.final && ['ticket', 'now'].includes(phase())) keepAwake();
+  });
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  // ---- дії ----
+  $('#svc').addEventListener('click', e => {
+    const b = e.target.closest('button[data-type]');
+    if (!b) return;
+    type = b.dataset.type;
+    $$('#svc button').forEach(x => x.classList.toggle('on', x === b));
+    $('#cake').hidden = type !== 'vip';
+  });
+
+  $('#btn-take').onclick = () => {
+    if (!up) return toast('Немає зв’язку. Перевірте інтернет.');
+    if (!fresh()) return toast('Табло не відповідає. Спробуйте за хвилину.');
+    if (type === 'vip' && !$('#cake-ok').checked) {
+      const c = $('#cake'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+      return toast('Спершу підтвердіть наявність фондану 🍫');
+    }
+    unlockAudio(); keepAwake();
+    const text = $('#q-text').value.replace(/\s+/g, ' ').trim().slice(0, 80);
+    pending = { at: Date.now(), text };
+    printUntil = Date.now() + 1500;
+    send({ a: 'take', type, text });
+    render();
+    setTimeout(render, 1550);
+    setTimeout(() => {
+      if (pending && Date.now() - pending.at >= 9500) { pending = null; render(); toast('Термінал зажував талон. Спробуйте ще раз.'); }
+    }, 10000);
+  };
+
+  $('#btn-self').onclick = () => {
+    if (!my) return;
+    send({ a: 'cancel', n: my.n, self: true });
+    my.final = 'medal'; saveMy(); render();
+  };
+  $('#btn-cancel').onclick = () => {
+    if (!my || !confirm('Відмовитися від талона? Місце в черзі втратиться.')) return;
+    send({ a: 'cancel', n: my.n });
+    my = null; saveMy(); render();
+    toast('Ви вибули з черги. Повертайтеся (бажано з фонданом).');
+  };
+  $('#btn-going').onclick = () => { if (my) { my.going = my.n; saveMy(); } stopTitle(); render(); };
+  $('#stars').addEventListener('click', e => {
+    const b = e.target.closest('button[data-s]');
+    if (!b || !my || my.rated) return;
+    my.rated = +b.dataset.s; saveMy();
+    send({ a: 'rate', n: my.n, stars: my.rated });
+    render();
+  });
+  $$('[data-new]').forEach(b => b.onclick = () => {
+    my = null; saveMy();
+    $('#q-text').value = ''; $('#cake-ok').checked = false;
+    render(); window.scrollTo(0, 0);
+  });
+
+  setInterval(render, 1000);
+  render();
+})();
+</script>
+</body>
+</html>

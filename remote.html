@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ЦНАВ · Пульт</title>
+<meta name="theme-color" content="#0e0e0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Пульт ЦНАВ">
+<!-- без manifest навмисно: тоді «На головний екран» зберігає адресу разом із кодом пульта -->
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0f; --panel: #17171a; --line: #2a2a2f; --text: #f3f0e8; --mute: #8d8b85;
+    --yellow: #FFD23F; --led: #ff3b2f; --led-off: #26110f;
+    --green: #2fd27a; --amber: #ffb800; --red: #ff3b2f;
+    --f-display: Unbounded, "Arial Black", system-ui, sans-serif;
+    --f-body: Manrope, system-ui, -apple-system, sans-serif;
+    --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--f-body);
+    min-height: 100vh; min-height: 100dvh;
+    padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; touch-action: manipulation; }
+  .wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+  header { display: flex; align-items: center; gap: 10px; padding: 4px 0 8px; }
+  .pill {
+    font-family: var(--f-display); font-weight: 700; font-size: 12px; letter-spacing: .04em;
+    background: var(--text); color: var(--bg); padding: 6px 12px; border-radius: 99px; white-space: nowrap;
+  }
+  .brand { font-family: var(--f-display); font-weight: 900; font-size: 13px; background: var(--yellow); color: #111; padding: 2px 7px; }
+  .conn { margin-left: auto; display: flex; align-items: center; gap: 7px; font-family: var(--f-mono); font-size: 11.5px; color: var(--mute); white-space: nowrap; }
+  .conn i { width: 9px; height: 9px; border-radius: 50%; background: #555; flex: none; }
+  .conn.on i { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .conn.on { color: var(--text); }
+  .conn.off i { background: var(--red); }
+
+  .banner {
+    border-radius: 12px; padding: 11px 13px; font-size: 13.5px; font-weight: 600; line-height: 1.4;
+    background: rgba(255,59,47,.1); border: 1px solid rgba(255,59,47,.6); color: #ffc2bd;
+  }
+  .banner.info { background: rgba(255,210,63,.08); border-color: rgba(255,210,63,.5); color: #ffe7a3; }
+  .banner[hidden] { display: none; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .label { font-family: var(--f-mono); font-weight: 700; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--mute); }
+
+  .screen {
+    margin-top: 10px; height: 104px; padding: 14px 18px;
+    background: #070707; border-radius: 10px; box-shadow: inset 0 0 24px rgba(0,0,0,.9);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .screen svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(255,59,47,.55)); }
+  .screen .s { fill: var(--led-off); }
+  .screen .s.on { fill: var(--led); }
+  .wait { font-family: var(--f-mono); font-size: 11.5px; color: var(--mute); margin-top: 8px; }
+  .wait b { color: var(--text); }
+
+  .row { display: flex; gap: 10px; margin-top: 12px; }
+  .btn {
+    font-family: var(--f-display); font-weight: 700; font-size: 15px;
+    border-radius: 14px; padding: 0 16px; min-height: 54px;
+    background: var(--line); color: var(--text); white-space: nowrap;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform .08s, opacity .2s;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.grow { flex: 1; }
+  .btn.primary { background: var(--yellow); color: #111; }
+  .btn.danger { background: var(--red); color: #fff; }
+  .btn.big { min-height: 78px; font-size: 21px; border-radius: 18px; }
+  .btn.sq { width: 54px; padding: 0; flex: none; }
+  .btn.big.sq { width: 78px; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); }
+
+  .seg3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .sb {
+    border: 2px solid var(--line); border-radius: 14px; padding: 13px 4px 11px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    font-family: var(--f-display); font-weight: 700; font-size: 10.5px; text-transform: uppercase;
+    opacity: .5; transition: opacity .2s, border-color .2s, background .2s;
+  }
+  .sb i { width: 24px; height: 24px; border-radius: 50%; background: currentColor; }
+  .sb span { color: var(--text); }
+  .sb.g { color: var(--green); } .sb.y { color: var(--amber); } .sb.r { color: var(--red); }
+  .sb.active { opacity: 1; border-color: currentColor; background: rgba(255,255,255,.04); }
+  .sb.active i { box-shadow: 0 0 14px currentColor; }
+  .sub { font-family: var(--f-mono); font-size: 11.5px; color: var(--mute); text-align: center; margin-top: 9px; min-height: 1em; font-variant-numeric: tabular-nums; }
+
+  .lim { display: flex; align-items: baseline; gap: 7px; margin-top: 6px; }
+  .lim b { font-family: var(--f-display); font-weight: 900; font-size: 40px; line-height: 1; }
+  .lim span { font-family: var(--f-display); font-weight: 700; font-size: 17px; color: var(--mute); }
+  .lim em {
+    margin-left: auto; align-self: center; font-style: normal;
+    font-family: var(--f-display); font-weight: 900; font-size: 11px; text-transform: uppercase;
+    background: var(--red); color: #fff; padding: 5px 9px; border-radius: 6px; transform: rotate(-4deg);
+  }
+  .lim em[hidden] { display: none; }
+  .card.exhausted { border-color: var(--red); }
+  .card.exhausted .lim b { color: var(--red); }
+  .boxes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .boxes i { width: 22px; height: 22px; border-radius: 5px; border: 2px solid var(--mute); }
+  .boxes i.on { background: var(--yellow); border-color: var(--yellow); }
+
+  .days { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .days b {
+    font-family: var(--f-display); font-weight: 900; font-size: 32px; line-height: 1;
+    border: 2px solid var(--text); border-radius: 9px; padding: 6px 14px; min-width: 64px; text-align: center;
+  }
+  .days small { font-family: var(--f-mono); font-size: 11.5px; color: var(--mute); line-height: 1.5; }
+  .days small strong { color: var(--text); }
+
+  details summary {
+    list-style: none; cursor: pointer;
+    font-family: var(--f-mono); font-weight: 700; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--mute);
+    display: flex; justify-content: space-between;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: "+"; font-size: 16px; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  .set { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .set > span { flex: 1; font-weight: 700; font-size: 14.5px; }
+  .set output { font-family: var(--f-display); font-weight: 900; font-size: 20px; min-width: 34px; text-align: center; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .grid2 .btn { font-size: 13px; min-height: 50px; white-space: normal; text-align: center; line-height: 1.2; padding: 6px 10px; }
+
+  .hint { font-size: 12px; color: var(--mute); text-align: center; line-height: 1.5; padding: 6px 8px 0; font-weight: 600; }
+
+  .offline .ctl { opacity: .45; }
+
+  .note-cur { margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 14px; font-weight: 700; line-height: 1.4;
+    background: rgba(255,210,63,.08); border: 1px solid rgba(255,210,63,.5); color: #ffe7a3; overflow-wrap: anywhere; }
+  .note-cur.none { background: none; border-style: dashed; border-color: var(--line); color: var(--mute); font-weight: 600; }
+  .note-in { display: flex; gap: 8px; margin-top: 10px; }
+  .note-in input {
+    flex: 1; min-width: 0; min-height: 50px; padding: 0 13px; border-radius: 12px;
+    background: #0b0b0c; border: 1px solid var(--line); color: var(--text);
+    font: 600 16px var(--f-body); user-select: text; -webkit-user-select: text; outline: none;
+  }
+  .note-in input:focus { border-color: var(--yellow); }
+  .note-in .btn { min-height: 50px; font-size: 13.5px; padding: 0 14px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .pre { border: 1px solid var(--line); border-radius: 99px; padding: 8px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .pre:active { transform: scale(.96); }
+  .pre.active { border-color: var(--yellow); color: var(--yellow); background: rgba(255,210,63,.08); }
+  .btn small { font-family: var(--f-mono); font-size: 13px; font-weight: 700; opacity: .65; }
+
+  .q-cur { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,59,47,.08); border: 1px solid rgba(255,59,47,.35); font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .q-cur b { font-family: var(--f-display); font-weight: 900; }
+  .q-cur:empty { display: none; }
+  .q { list-style: none; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow: auto; }
+  .q li { display: flex; gap: 9px; align-items: baseline; padding: 9px 11px; border-radius: 10px; background: rgba(255,255,255,.035); font-size: 14px; }
+  .q li b { font-family: var(--f-display); font-weight: 900; font-size: 14px; white-space: nowrap; }
+  .q li span { color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; font-weight: 600; }
+  .q li.vip { background: rgba(255,210,63,.12); }
+  .q li.empty { color: var(--mute); background: none; padding-left: 0; font-weight: 600; }
+  @media (max-width: 400px) { .brand { display: none; } .pill { font-size: 11px; padding: 6px 10px; } }
+
+  .empty { text-align: center; padding: 18vh 8px 0; }
+  .empty h1 { font-family: var(--f-display); font-weight: 900; font-size: 26px; text-transform: uppercase; line-height: 1.1; margin-top: 20px; }
+  .empty p { color: var(--mute); font-size: 15px; line-height: 1.5; margin-top: 14px; font-weight: 600; }
+  .empty p b { color: var(--text); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); z-index: 5;
+    transform: translate(-50%, 12px); opacity: 0; pointer-events: none;
+    background: var(--text); color: var(--bg); font-weight: 700; font-size: 14px;
+    padding: 12px 18px; border-radius: 12px; transition: opacity .2s, transform .2s;
+    width: max-content; max-width: calc(100vw - 32px); text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app" hidden>
+  <header>
+    <div class="pill">ПУЛЬТ · ВІКНО № <span id="win">1</span></div>
+    <div class="brand">ЦНАВ</div>
+    <div class="conn" id="conn"><i></i><span>з’єднання…</span></div>
+  </header>
+
+  <div class="banner" id="b-offline" hidden>Табло не на зв’язку. Відкрийте сайт на планшеті й перевірте інтернет. Якщо на табло створили новий код — відскануйте QR ще раз.</div>
+  <div class="banner info" id="b-splash" hidden>На табло ще заставка «Вікно зачинене». Будь-яка кнопка її прибере, але щоб був звук — торкніться планшета.</div>
+  <div class="banner info" id="b-audio" hidden>🔇 Звук на табло ще не ввімкнено. Торкніться планшета один раз — iPad вмикає звук лише після дотику.</div>
+
+  <section class="card">
+    <div class="label">Зараз обслуговується</div>
+    <div class="screen" id="screen"></div>
+    <div class="wait">Очікування для наступного: <b id="wait">—</b></div>
+    <div class="row">
+      <button class="btn big sq ctl" data-cmd="prev" aria-label="Попередній номер">◀</button>
+      <button class="btn big primary grow ctl" data-cmd="next" id="btn-next">Наступний ▶</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">Електронна черга · <span id="q-count">0</span></div>
+    <div class="q-cur" id="q-cur"></div>
+    <ol class="q" id="q-list"></ol>
+    <div class="row"><button class="btn ghost grow ctl" data-cmd="manual">🎫 + Людина без телефона</button></div>
+  </section>
+
+  <section class="card">
+    <div class="label">Статус вікна</div>
+    <div class="seg3">
+      <button class="sb g ctl" data-cmd="status" data-v="open"><i></i><span>Відчинено</span></button>
+      <button class="sb y ctl" data-cmd="status" data-v="think"><i></i><span>Думаю</span></button>
+      <button class="sb r ctl" data-cmd="status" data-v="closed"><i></i><span>Зачинено</span></button>
+    </div>
+    <div class="sub" id="status-sub"></div>
+  </section>
+
+  <section class="card">
+    <div class="label">Табличка на табло</div>
+    <div class="note-cur" id="note-cur"></div>
+    <form class="note-in" id="note-form" autocomplete="off">
+      <input id="note-text" maxlength="60" placeholder="Свій текст…" enterkeyhint="done" aria-label="Текст таблички">
+      <button class="btn primary ctl" type="submit">Показати</button>
+    </form>
+    <div class="presets" id="presets">
+      <button class="pre ctl" data-note="🏝 Поїхав на Мадейру. Буду у 2027">🏝 Мадейра до 2027</button>
+      <button class="pre ctl" data-note="🍽 Обідня перерва ± вічність">🍽 Обід ± вічність</button>
+      <button class="pre ctl" data-note="☕ До першої кави не підходити">☕ До першої кави</button>
+      <button class="pre ctl" data-note="🎧 На мітингу. Подумки — з вами">🎧 На мітингу</button>
+      <button class="pre ctl" data-note="🔥 Прод горить. Питання — потім">🔥 Прод горить</button>
+      <button class="pre ctl" data-note="🏖 Вихідний · навіть не пишіть">🏖 Вихідний</button>
+    </div>
+    <div class="row" id="note-clear-row" hidden><button class="btn ghost grow ctl" id="note-clear">✕ Прибрати табличку</button></div>
+  </section>
+
+  <section class="card" id="lim-card">
+    <div class="label">Денний ліміт питань</div>
+    <div class="lim"><b id="lim-n">0</b><span>/ <span id="lim-max">5</span></span><em id="lim-exh" hidden>Вичерпано</em></div>
+    <div class="boxes" id="boxes"></div>
+    <div class="row">
+      <button class="btn sq ctl" data-cmd="q-" aria-label="Мінус питання">−</button>
+      <button class="btn primary grow ctl" data-cmd="q+">+ Питання</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">Днів без «а є хвилинка?»</div>
+    <div class="days">
+      <b id="days">0</b>
+      <small id="rec">Рекорд: <strong>0</strong></small>
+    </div>
+    <div class="row"><button class="btn danger grow ctl" data-cmd="incident">😩 Спитали</button></div>
+  </section>
+
+  <details class="card">
+    <summary>Ще</summary>
+    <div class="set">
+      <span>Ліміт на день</span>
+      <button class="btn sq ctl" data-cmd="limit" data-v="-1" aria-label="Зменшити ліміт">−</button>
+      <output id="lim-set">5</output>
+      <button class="btn sq ctl" data-cmd="limit" data-v="1" aria-label="Збільшити ліміт">+</button>
+    </div>
+    <div class="grid2">
+      <button class="btn ctl" data-cmd="test">🔔 Тест оголошення</button>
+      <button class="btn ctl" data-cmd="close">✕ Закрити вікно на табло</button>
+      <button class="btn ghost ctl" data-cmd="reset-q" data-confirm="Очистити чергу? Усі видані талони стануть недійсними.">Очистити чергу</button>
+      <button class="btn ghost" id="btn-forget">Відв’язати пульт</button>
+    </div>
+  </details>
+
+  <p class="hint">Порада: «Поділитися» → «На початковий екран» — і пульт завжди під рукою.</p>
+</div>
+
+<div class="wrap empty" id="empty" hidden>
+  <div><span class="pill">ПУЛЬТ ЦНАВ</span></div>
+  <h1>Пульт не підключено</h1>
+  <p>На планшеті торкніться екрана → <b>⚙</b> → <b>📱 Пульт з телефона</b> і відскануйте QR-код камерою телефона.</p>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://unpkg.com/mqtt@5.14.1/dist/mqtt.min.js"></script>
+<script src="common.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const pad = n => String(n).padStart(2, '0');
+  const KEY = 'cnav-remote-room';
+
+  // ---- код пульта: з адреси (?r=...) або з пам'яті ----
+  const params = new URLSearchParams(location.search);
+  let room = params.get('r');
+  try {
+    if (room) localStorage.setItem(KEY, room);
+    else room = localStorage.getItem(KEY);
+  } catch (e) {}
+  if (!room || !/^[a-z0-9]{6,32}$/.test(room)) { $('#empty').hidden = false; return; }
+  if (params.get('r') !== room) history.replaceState(null, '', '?r=' + room);
+  $('#app').hidden = false;
+
+  const seg = CNAV.makeSeg7($('#screen'), 5);
+  let st = null, up = 0;
+  const onlineFlags = {};
+  const startedAt = Date.now();
+
+  const T = CNAV.topics.priv(room);
+  const bus = CNAV.createBus({
+    tag: 'remote',
+    subs: [T.state, T.online],
+    onMessage(topic, text, link) {
+      if (topic === T.online) { onlineFlags[link.name] = text === '1'; render(); return; }
+      if (topic === T.state) {
+        if (!text) return;
+        try {
+          const s = JSON.parse(text);
+          if (!st || s.rev > st.rev) { st = s; render(); }
+        } catch (e) {}
+      }
+    },
+    onConn(n) { up = n; render(); },
+  });
+
+  const online = () => !!st && Object.values(onlineFlags).some(Boolean) && Date.now() - st.ts < 180e3;
+
+  function render() {
+    const on = online();
+    const conn = $('#conn');
+    conn.className = 'conn ' + (on ? 'on' : (up ? 'off' : ''));
+    conn.lastElementChild.textContent = !bus.ok ? 'Немає бібліотеки' : !up ? 'з’єднання…' : on ? 'на зв’язку' : 'табло офлайн';
+    $('#app').classList.toggle('offline', !on);
+    $('#b-offline').hidden = on || Date.now() - startedAt < 5000;
+    $('#b-splash').hidden = !(on && st.splash);
+    $('#b-audio').hidden = !(on && !st.splash && !st.audio && (st.sound || st.voice));
+
+    if (!st) return;
+    seg.set(CNAV.ticketStr(st.num));
+    $('#wait').textContent = st.wait;
+    $('#win').textContent = st.win;
+
+    $$('.sb').forEach(b => b.classList.toggle('active', b.dataset.v === st.status));
+    let sub = '';
+    if (st.status === 'think') {
+      const P = 5 * 60e3, el = Math.max(0, Date.now() - st.statusAt), left = P - (el % P);
+      sub = (el >= P ? 'ну ще ' : 'зачекайте ') + `${Math.floor(left / 60e3)}:${pad(Math.floor(left % 60e3 / 1000))}`;
+    } else if (st.status === 'closed') sub = 'на табло: «Не турбувати • Я в потоці»';
+    else sub = 'питайте сміливо';
+    $('#status-sub').textContent = sub;
+
+    const note = st.note || '';
+    const nc = $('#note-cur');
+    nc.textContent = note ? note : 'Таблички немає. Напишіть свою або виберіть готову.';
+    nc.classList.toggle('none', !note);
+    $('#note-clear-row').hidden = !note;
+    $$('.pre').forEach(b => b.classList.toggle('active', b.dataset.note === note));
+
+    const exhausted = st.used >= st.limit;
+    $('#lim-n').textContent = st.used + st.over;
+    $('#lim-max').textContent = st.limit;
+    $('#lim-set').textContent = st.limit;
+    $('#lim-exh').hidden = !exhausted;
+    $('#lim-card').classList.toggle('exhausted', exhausted);
+    const boxes = $('#boxes');
+    if (boxes.children.length !== st.limit) boxes.innerHTML = '<i></i>'.repeat(st.limit);
+    [...boxes.children].forEach((b, i) => b.classList.toggle('on', i < st.used));
+
+    $('#days').textContent = st.days;
+    $('#rec').innerHTML = `Рекорд: <strong>${st.record} ${CNAV.plural(st.record, ['день', 'дні', 'днів'])}</strong>` +
+      (st.rating != null ? `<br>Рейтинг вікна: <strong>★ ${st.rating.toFixed(1)}</strong> (${st.ratings})` : '') +
+      (st.over > 0 ? `<br>Понад ліміт сьогодні: <strong>${st.over}</strong>` : '');
+
+    // електронна черга (з суттю питань — її бачить лише пульт)
+    const TY = CNAV.TYPES, esc = CNAV.esc, tk = CNAV.ticketStr;
+    const ty = t => TY[t] || TY.quick;
+    const q = st.queue || [];
+    $('#q-count').textContent = q.length;
+    $('#q-cur').innerHTML = st.cur
+      ? `Біля вікна: <b>${tk(st.cur.n)}</b> ${ty(st.cur.t).icon} ${esc(ty(st.cur.t).name)}${st.cur.text ? `<br>«${esc(st.cur.text)}»` : ''}`
+      : '';
+    $('#q-list').innerHTML = q.length
+      ? q.map(t => `<li class="${t.t === 'vip' ? 'vip' : ''}"><b>${tk(t.n)}</b>${ty(t.t).icon}<span>${t.text ? '«' + esc(t.text) + '»' : esc(ty(t.t).name)}</span></li>`).join('')
+      : '<li class="empty">Нікого. Насолоджуйтесь тишею.</li>';
+    $('#btn-next').innerHTML = q.length ? `Наступний ▶ <small>${tk(q[0].n)}</small>` : 'Наступний ▶';
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  function send(a, v) {
+    if (!up) return toast('Немає інтернету або сервер пульта недоступний');
+    if (!online()) toast('Табло офлайн — команда може не дійти');
+    bus.publish(T.cmd, JSON.stringify({ a, v, id: CNAV.randomId(10), t: Date.now() }), { qos: 1 });
+    if (navigator.vibrate) navigator.vibrate(12);
+  }
+
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-cmd]');
+    if (!b) return;
+    if (b.dataset.confirm && !confirm(b.dataset.confirm)) return;
+    const v = b.dataset.v;
+    send(b.dataset.cmd, v === undefined ? undefined : (isNaN(+v) ? v : +v));
+  });
+
+  // табличка
+  $('#note-form').onsubmit = e => {
+    e.preventDefault();
+    const inp = $('#note-text'), v = inp.value.replace(/\s+/g, ' ').trim();
+    if (!v) { inp.focus(); return toast('Напишіть, що показати на табло'); }
+    send('note', v.slice(0, 60));
+    inp.value = ''; inp.blur();
+  };
+  $('#presets').onclick = e => {
+    const b = e.target.closest('[data-note]');
+    if (!b) return;
+    send('note', b.classList.contains('active') ? '' : b.dataset.note);
+  };
+  $('#note-clear').onclick = () => send('note', '');
+
+  $('#btn-forget').onclick = () => {
+    if (!confirm('Відв’язати цей телефон від табло?')) return;
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    bus.close();
+    location.replace(location.pathname);
+  };
+
+  setInterval(render, 1000);
+  render();
+})();
+</script>
+</body>
+</html>
